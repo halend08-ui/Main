@@ -52,3 +52,52 @@ All notable changes to this project. Phases refer to the staged build plan in
 - Stooq closes are split- but not dividend-adjusted; the provider reports
   `adj_close` as *missing* rather than passing raw closes off as total-return
   adjusted.
+
+### Phase 2 - Data quality and bias controls
+
+**Added**
+
+- `research_engine.quality.checks`: price-series validation (impossible values,
+  OHLC inconsistency, calendar gaps, staleness, frozen feeds, zero-volume runs,
+  suspected unadjusted splits, extreme moves), fundamental validation (missing
+  core metrics, impossible signs, balance-sheet identity, fiscal-year gaps,
+  restatement detection) and news validation (syndication, low-tier sources).
+- `research_engine.quality.grading`: severity-weighted scoring with per-code
+  penalty caps, grade assignment, contagious FATAL handling when scopes are
+  combined, and the confidence multiplier that quality imposes on every
+  downstream recommendation. Clean-but-thin samples are capped at FAIR.
+- `research_engine.quality.bias`: point-in-time assertions, feature/label
+  look-ahead detection, same-bar execution detection, survivorship checks,
+  train/test embargo validation against the label horizon, and overfitting
+  pressure diagnostics that deflate results from heavily searched parameter
+  spaces.
+
+### Phase 3 - Analytical feature engines
+
+**Added**
+
+- `features.technical`: causal indicator library (SMA, EMA, Wilder smoothing,
+  RSI, MACD, ATR, Bollinger, ADX/DI, OBV, MFI, Donchian, drawdown, rolling
+  volatility, relative strength). Warm-up periods stay NaN; a regression test
+  proves indicator values do not change when future bars are appended.
+- `features.returns`: CAGR, volatility, downside deviation, Sharpe, Sortino,
+  max drawdown, drawdown episodes, historical VaR, expected shortfall, skew,
+  excess kurtosis, beta/alpha and tracking error - each refusing to compute on
+  samples too small to support the statistic.
+- `features.fundamental`: growth profiles with durability and stability,
+  margins and trends, ROE/ROIC with effective tax rates, balance-sheet health,
+  capital allocation, Altman Z (gated off financials), and an evidence-gated
+  moat assessment that returns "none" unless the numbers support it.
+- `features.valuation`: multiples with negative-denominator guards, relative
+  valuation against history and peers, a fully-explicit two-stage DCF, reverse
+  DCF, sensitivity grids, bear/base/bull scenarios, and a blend that surfaces
+  method disagreement instead of averaging it away.
+- `features.crypto`: supply/dilution metrics, emission rate, unlock overhang
+  measured in days of volume (absent schedules reported as *unknown*, never
+  zero), liquidity and Amihud illiquidity, network usage metrics, and an
+  eight-factor crypto risk assessment that reports its own coverage.
+- `features.macro`: point-in-time macro readings, policy/inflation/curve/credit
+  stance classification, and bounded sector tilts (+/-15%) with stated priors.
+- `features.regime`: bull/bear/sideways plus volatility and risk-appetite
+  regimes from trend, realised-volatility percentile, breadth and credit, with
+  confidence that falls when inputs are missing.
