@@ -145,10 +145,13 @@ analysis:
     default_tax_rate: 0.21
     min_discount_rate: 0.06
     max_discount_rate: 0.20
+    # Deltas applied to the base case. `margin_delta` shifts the cash-flow base,
+    # `discount_delta` the required return; both are applied by
+    # features.valuation.scenario_valuation.
     scenarios:
-      bear: {revenue_growth_delta: -0.05, margin_delta: -0.03, exit_multiple_delta: -0.25}
-      base: {revenue_growth_delta: 0.0, margin_delta: 0.0, exit_multiple_delta: 0.0}
-      bull: {revenue_growth_delta: 0.04, margin_delta: 0.02, exit_multiple_delta: 0.25}
+      bear: {revenue_growth_delta: -0.06, margin_delta: -0.04, discount_delta: 0.025}
+      base: {revenue_growth_delta: 0.0, margin_delta: 0.0, discount_delta: 0.0}
+      bull: {revenue_growth_delta: 0.04, margin_delta: 0.02, discount_delta: -0.010}
 
 scoring:
   # Weights are configurable and validated historically (see learning/).

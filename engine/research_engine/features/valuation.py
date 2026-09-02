@@ -358,9 +358,11 @@ def scenario_valuation(*, base_fcf: float, shares: float, net_debt: float,
                        ) -> ValuationScenarios:
     """Bear/base/bull DCF driven by configured deltas, not by intuition."""
     config = scenario_config or {
-        "bear": {"revenue_growth_delta": -0.05, "discount_delta": 0.02},
+        "bear": {"revenue_growth_delta": -0.05, "margin_delta": -0.03,
+                 "discount_delta": 0.02},
         "base": {},
-        "bull": {"revenue_growth_delta": 0.04, "discount_delta": -0.01},
+        "bull": {"revenue_growth_delta": 0.04, "margin_delta": 0.02,
+                 "discount_delta": -0.01},
     }
     results: dict[str, float | None] = {}
     warnings: list[str] = []
@@ -372,10 +374,17 @@ def scenario_valuation(*, base_fcf: float, shares: float, net_debt: float,
         r = discount_rate + float(deltas.get("discount_delta", 0.0))
         tg = terminal_growth + float(deltas.get("terminal_growth_delta", 0.0))
         tg = min(tg, r - 0.005)
+        # A margin delta shifts the cash-flow base itself: three points of margin
+        # on a 20%-margin business is a 15% change in cash flow, and ignoring it
+        # would make the bear case far too gentle.
+        margin_delta = float(deltas.get("margin_delta", 0.0))
+        scenario_fcf = base_fcf * (1.0 + margin_delta * 5.0) if margin_delta else base_fcf
         assumptions = DcfAssumptions(
-            base_fcf=base_fcf, revenue_growth=g, growth_fade_to=tg, fcf_margin=None,
+            base_fcf=scenario_fcf, revenue_growth=g, growth_fade_to=tg, fcf_margin=None,
             discount_rate=r, terminal_growth=tg, years=years, tax_rate=0.0,
-            shares=shares, net_debt=net_debt)
+            shares=shares, net_debt=net_debt,
+            notes=(f"scenario={name}", f"margin_delta={margin_delta:+.3f}")
+            if margin_delta else (f"scenario={name}",))
         try:
             result = discounted_cash_flow(assumptions)
         except ValueError as exc:

@@ -101,3 +101,51 @@ All notable changes to this project. Phases refer to the staged build plan in
 - `features.regime`: bull/bear/sideways plus volatility and risk-appetite
   regimes from trend, realised-volatility percentile, breadth and credit, with
   confidence that falls when inputs are missing.
+
+### Phase 4 - Scoring, risk, ensemble, probability, recommendations
+
+**Added**
+
+- `analysis.scoring`: factor sub-scorers with deliberately non-linear curves
+  (implausible cheapness is penalised, growth credit saturates), composite
+  scoring that *excludes* missing factors and renormalises rather than treating
+  them as zero, a coverage haircut, a withheld score when too much evidence is
+  missing, and a tier cap when data quality is below the configured minimum.
+- `analysis.risk`: volatility, tail risk (VaR/expected shortfall), gap risk,
+  permanent-loss risk from solvency inputs only, liquidity risk with days-to-exit,
+  a risk level in which permanent-loss risk dominates, correlation matrices,
+  portfolio volatility with explicit coverage reporting, and quotable limit
+  breaches.
+- `analysis.ensemble`: eight independent model views, a weighted consensus in
+  which no single view may exceed 35% of the vote, agreement/dispersion metrics
+  and named conflicts ("cheap but deteriorating: a possible value trap").
+- `analysis.probability`: base-rate anchored probability forecasting with every
+  adjustment itemised, bounded deviation from the anchor, shrinkage toward 50%
+  for poor data or thin history, reliability-diagram calibration with monotone
+  interpolation, Brier score and Brier *skill* score against the base rate.
+- `analysis.sentiment`: auditable financial lexicon with negation handling,
+  headline-versus-body divergence detection, hype and panic detection, source
+  tier weighting, and conflict reconciliation by source hierarchy that leaves
+  equally-authoritative disagreements explicitly unresolved.
+- `analysis.events`: rule-based classification of 20+ event types with impact,
+  expected magnitude, duration and thesis relevance; age-decayed aggregation.
+- `analysis.anomaly`: robust-statistics detectors (volume, price, volatility,
+  liquidity, fundamentals, valuation, insider clusters) that generate research
+  candidates and are explicitly barred from generating signals.
+- `analysis.sell`: five sell triggers, machine-evaluable exit conditions derived
+  from the thesis itself, thesis-invalidation statements about assumptions
+  rather than price, and an opportunity-cost check with a switching hurdle. A
+  price decline alone triggers review, never a sell.
+- `analysis.recommendation`: explicit gates (data quality, factor coverage,
+  confidence, permanent-loss risk, survivable bear case, model agreement), the
+  bear/bull case constructors, change description against the previous run, and
+  the canonical rendered output block.
+- `analysis.pipeline`: the per-asset orchestrator used identically by live runs,
+  backtest replay and tests.
+
+**Fixed**
+
+- `analysis.valuation` ignored the `margin_delta` and `exit_multiple_delta` keys
+  that `default.yaml` defined, so bear cases were far too gentle. Scenario
+  deltas now shift the cash-flow base and the discount rate, and the config
+  documents which keys are applied.
