@@ -1,0 +1,257 @@
+# ---------------------------------------------------------------------------
+# Default configuration for the research engine.
+#
+# Precedence (lowest -> highest):
+#   these defaults  <  config file (--config / RESEARCH_ENGINE_CONFIG)
+#                   <  environment variables (RE__SECTION__KEY=value)
+#
+# Secrets are NEVER stored here. Providers reference an environment variable
+# name via `api_key_env`; the value is read at runtime and never logged.
+# ---------------------------------------------------------------------------
+
+app:
+  name: research-engine
+  environment: development
+  log_level: INFO
+  log_json: false
+  data_dir: ./data
+  timezone: UTC
+  # Hard safety switch. Trading integrations are not implemented; this exists
+  # so that any future execution code has an explicit, auditable gate.
+  allow_trading: false
+
+database:
+  # sqlite path relative to data_dir unless absolute
+  path: research.db
+  busy_timeout_ms: 10000
+  journal_mode: WAL
+  synchronous: NORMAL
+  cache_size_kb: 65536
+
+universe:
+  asset_classes: [equity, crypto]
+  countries: [US, CA]
+  exchanges: []            # empty = no exchange restriction
+  sectors: []              # empty = all sectors
+  min_market_cap_usd: 50000000
+  max_market_cap_usd: null
+  min_dollar_volume_usd: 250000
+  min_price_usd: 1.0
+  max_assets: 5000
+  include_delisted_in_history: true   # survivorship-bias control
+  crypto:
+    min_market_cap_usd: 25000000
+    min_daily_volume_usd: 1000000
+    max_assets: 1000
+    exclude_stablecoins: true
+    require_exchange_count: 2
+
+ingestion:
+  request_timeout_seconds: 20
+  max_retries: 4
+  backoff_base_seconds: 1.0
+  backoff_max_seconds: 60.0
+  backoff_jitter: 0.25
+  cache_dir: cache
+  cache_ttl_seconds:
+    prices_eod: 43200        # 12h
+    prices_intraday: 300
+    fundamentals: 86400
+    filings: 86400
+    news: 1800
+    macro: 43200
+    universe: 86400
+    crypto_market: 900
+  user_agent: "research-engine/0.1 (contact: set INGESTION_CONTACT_EMAIL)"
+  providers:
+    # order = failover order within each capability
+    prices_eod: [csv_local, stooq]
+    fundamentals: [sec_edgar]
+    crypto_market: [coingecko]
+    crypto_history: [coingecko]
+    news: [rss]
+    macro: [fred]
+    universe_equity: [sec_edgar]
+    universe_crypto: [coingecko]
+
+providers:
+  stooq:
+    enabled: true
+    base_url: "https://stooq.com"
+    requests_per_minute: 30
+    api_key_env: null
+    source_tier: data_provider
+  coingecko:
+    enabled: true
+    base_url: "https://api.coingecko.com/api/v3"
+    requests_per_minute: 10          # free tier is ~10-30/min; stay conservative
+    api_key_env: COINGECKO_API_KEY   # optional; raises limits when present
+    source_tier: data_provider
+  sec_edgar:
+    enabled: true
+    base_url: "https://data.sec.gov"
+    requests_per_minute: 60          # SEC asks for <= 10 req/s; we stay well under
+    api_key_env: null
+    source_tier: regulatory_filing
+  fred:
+    enabled: true
+    base_url: "https://api.stlouisfed.org/fred"
+    requests_per_minute: 60
+    api_key_env: FRED_API_KEY
+    source_tier: regulatory_filing
+  rss:
+    enabled: true
+    requests_per_minute: 30
+    api_key_env: null
+    source_tier: financial_journalism
+  csv_local:
+    enabled: true
+    root: local
+    source_tier: data_provider
+
+quality:
+  max_price_staleness_days: 5
+  max_crypto_price_staleness_days: 2
+  max_fundamental_staleness_days: 200
+  max_daily_move_abs: 0.6            # flag > 60% single-day moves for review
+  max_crypto_daily_move_abs: 1.5
+  min_history_days_for_analysis: 120
+  min_history_days_for_valuation: 500
+  min_coverage_ratio: 0.9            # observed / expected sessions
+  duplicate_tolerance: 0
+  reject_nonpositive_prices: true
+
+analysis:
+  horizons: ["1m", "3m", "6m", "1y", "3y"]
+  default_horizon: "1y"
+  risk_free_rate_env: RISK_FREE_RATE
+  risk_free_rate_default: 0.042      # documented assumption, overridable
+  equity_risk_premium: 0.05
+  benchmark_equity: SPY
+  benchmark_crypto: BTC
+  min_confidence_to_recommend: 0.35
+  technical:
+    sma_windows: [20, 50, 100, 200]
+    ema_windows: [12, 26, 50]
+    rsi_window: 14
+    macd: [12, 26, 9]
+    atr_window: 14
+    bollinger: [20, 2.0]
+    adx_window: 14
+  valuation:
+    dcf_years: 10
+    terminal_growth: 0.025
+    max_terminal_growth: 0.035
+    default_tax_rate: 0.21
+    min_discount_rate: 0.06
+    max_discount_rate: 0.20
+    scenarios:
+      bear: {revenue_growth_delta: -0.05, margin_delta: -0.03, exit_multiple_delta: -0.25}
+      base: {revenue_growth_delta: 0.0, margin_delta: 0.0, exit_multiple_delta: 0.0}
+      bull: {revenue_growth_delta: 0.04, margin_delta: 0.02, exit_multiple_delta: 0.25}
+
+scoring:
+  # Weights are configurable and validated historically (see learning/).
+  # They must sum to > 0; they are normalised at load time.
+  weights:
+    fundamental_quality: 0.16
+    growth: 0.12
+    valuation: 0.16
+    momentum: 0.10
+    technical_structure: 0.05
+    financial_health: 0.12
+    competitive_advantage: 0.05
+    capital_allocation: 0.04
+    macro_environment: 0.03
+    event_risk: 0.04
+    sentiment: 0.03
+    liquidity: 0.04
+    downside_risk: 0.06
+  crypto_weights:
+    tokenomics: 0.18
+    network_activity: 0.14
+    liquidity: 0.14
+    momentum: 0.12
+    valuation: 0.10
+    developer_activity: 0.08
+    concentration_risk: 0.10
+    event_risk: 0.07
+    sentiment: 0.04
+    downside_risk: 0.03
+  thresholds:
+    exceptional: 82
+    strong: 70
+    moderate: 58
+    watch: 45
+  min_quality_for_buy: good
+  max_missing_factor_ratio: 0.4
+
+risk:
+  var_confidence: 0.95
+  expected_shortfall_confidence: 0.975
+  lookback_days: 756
+  max_position_weight: 0.12
+  max_sector_weight: 0.30
+  max_crypto_weight: 0.20
+  concentration_warning_hhi: 0.18
+  liquidity_participation_cap: 0.05   # max % of ADV a position may represent
+  stop_atr_multiple: 3.0
+
+portfolio:
+  starting_cash_usd: 100000
+  max_positions: 30
+  rebalance_frequency_days: 30
+
+backtest:
+  start: "2015-01-01"
+  end: null
+  initial_capital: 100000
+  commission_bps: 5
+  slippage_bps: 10
+  crypto_slippage_bps: 30
+  min_liquidity_multiple: 20        # require ADV >= 20x position
+  train_window_days: 1260
+  test_window_days: 252
+  step_days: 252
+  embargo_days: 5                   # gap between train and test to stop leakage
+  benchmarks: [SPY, BTC, CASH]
+  max_complexity_penalty: 0.15
+
+learning:
+  min_samples_for_retrain: 200
+  min_samples_per_bucket: 30
+  calibration_bins: 10
+  max_weight_change_per_update: 0.25
+  evaluation_horizons: ["1m", "3m", "6m", "1y"]
+  promote_if_improvement: 0.02      # required out-of-sample edge to promote
+  registry_dir: models
+
+pipeline:
+  stage1_max_assets: 5000
+  stage2_max_assets: 600
+  stage3_max_assets: 120
+  stage4_max_assets: 25
+  discovery_max_new_per_day: 50
+  report_dir: reports
+  parallel_workers: 8
+
+alerts:
+  enabled: true
+  channels: [file]
+  file_path: alerts.jsonl
+  thresholds:
+    recommendation_change: true
+    score_change_abs: 8
+    price_move_abs_1d: 0.10
+    crypto_price_move_abs_1d: 0.18
+    drawdown_from_entry: 0.20
+    valuation_target_reached: true
+    thesis_invalidation: true
+    risk_increase_levels: 1
+    token_unlock_days_ahead: 14
+
+api:
+  host: 127.0.0.1
+  port: 8000
+  cors_origins: ["http://localhost:5173"]
+  read_only: true
