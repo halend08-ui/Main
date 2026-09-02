@@ -149,3 +149,45 @@ All notable changes to this project. Phases refer to the staged build plan in
   that `default.yaml` defined, so bear cases were far too gentle. Scenario
   deltas now shift the cash-flow base and the discount rate, and the config
   documents which keys are applied.
+
+### Phase 5 - Backtesting
+
+**Added**
+
+- `backtest.costs`: commission, size- and asset-class-dependent spreads, and
+  square-root market impact. Orders above the participation cap are rejected
+  and recorded rather than silently filled; missing volume makes execution
+  unverifiable rather than free.
+- `backtest.engine`: walk-forward simulation with a point-in-time universe
+  (assets truncated at the decision date and asserted future-free), next-bar
+  execution, delisting liquidation at a configurable recovery haircut,
+  survivorship warnings, and embargo validation against the label horizon.
+- `backtest.metrics`: CAGR, volatility, Sharpe, Sortino, Calmar, max drawdown,
+  VaR/ES, skew/kurtosis, beta/alpha, tracking error, information ratio, trade
+  statistics with cost drag and turnover, benchmark comparison that states
+  plainly when the strategy lost, and deflation of headline figures by the
+  number of configurations tried.
+
+### Phase 6 - Continuous learning
+
+**Added**
+
+- `learning.evaluation`: multi-dimensional grading of every stored prediction -
+  return, excess return, path drawdown, realised volatility and a thesis
+  outcome that distinguishes "succeeded" from "luck" (right direction, no
+  excess return). HOLD/WATCH make no directional claim and are not scored as
+  hits. Missing prices at the due date are flagged, never dropped.
+- `learning.performance`: performance bucketed by asset class, sector, regime,
+  horizon, recommendation, stated confidence and data quality; buckets below
+  the sample floor report "insufficient" instead of a number. Detects
+  systematic errors, no-skill probability forecasts, returns that came from
+  market exposure rather than selection, and whether stated confidence actually
+  tracks accuracy.
+- `learning.registry`: immutable model versions with parameter and code
+  fingerprints, promotion that retires rather than deletes, and a
+  reproducibility report that says when code drift means historical output can
+  no longer be re-derived.
+- `learning.retrain`: bounded learning only - factor-effectiveness measurement
+  (labelled association, not causation), weight proposals capped per update and
+  refused without enough evidence, and promotion that requires out-of-sample
+  samples, a margin, and no calibration regression.
