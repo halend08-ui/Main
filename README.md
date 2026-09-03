@@ -90,6 +90,46 @@ python -m research_engine.cli serve                    # read-only API on :8000
 cd web && npm install && npm run dev                   # dashboard on :5173
 ```
 
+## Offline, with real prices instead of synthetic ones
+
+Synthetic data proves the pipeline runs; it cannot tell you whether the
+reasoning survives contact with a real price series. For that, the engine can
+build a small dataset out of genuinely real daily bars that ship inside a
+public Python package -- no network, no fabricated numbers:
+
+```bash
+pip install bokeh_sampledata
+python scripts/build_real_dataset.py --root data/real
+CFG=config/offline-real.yaml
+python -m research_engine.cli --config $CFG universe --refresh
+python -m research_engine.cli --config $CFG ingest --symbols AAPL FB GOOG IBM MSFT
+python -m research_engine.cli --config $CFG analyze AAPL --as-of 2013-03-01
+```
+
+12,154 real daily bars for five names. The history **ends 2013-03-01**, so every
+run is a replay of that date, and no fundamentals ship with it.
+
+That last point is the interesting one. With prices but no filings, the engine
+returns `INSUFFICIENT_DATA` for all five -- four of its eight model views have
+no input -- while still reporting what it *does* know:
+
+```
+Recommendation: INSUFFICIENT_DATA        Current Price: $424.83
+Estimated Fair Value:  Bear n/a   Base n/a   Bull n/a
+Biggest Risks:
+  * Insufficient reliable data.
+  * permanent-loss risk could not be assessed
+  * annualised volatility of 46%
+  * has fallen 82% from a peak before
+Model views: fundamental No View | valuation No View | momentum Strongly
+             Bearish | technical Bearish | risk Mildly Supportive | ...
+```
+
+Those numbers are real and checkable: AAPL closed at $424.83 on 2013-03-01,
+down 26% over the prior three months, and its worst historical drawdown by then
+was the 82% decline of 2000-2003. A refusal to score is the correct output
+here, not a failure -- see `DATA_SOURCES.md`.
+
 ## Scanning thousands of assets and comparing them
 
 ```bash
@@ -217,7 +257,7 @@ stops, rather than producing a recommendation it cannot support.
 | Daily loop, discovery, alerts, reports | complete |
 | Parallel scan + cross-sectional ranking | complete, 3.7x on 4 cores |
 | CLI, read-only API, dashboard | complete |
-| Tests | 339 tests, fully offline |
+| Tests | 340 tests, fully offline |
 
 Known gaps are listed in `ARCHITECTURE.md` ("Known limitations") and
 `DATA_SOURCES.md` ("Not wired in"). They are reported by the system as

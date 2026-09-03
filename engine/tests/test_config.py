@@ -62,3 +62,26 @@ def test_default_embargo_covers_the_default_label_horizon():
     horizon = int(s.get("backtest.label_horizon_days"))
     embargo = int(s.get("backtest.embargo_days"))
     assert check_label_horizon_embargo(horizon, embargo) is None
+
+
+def test_shipped_configs_load_and_stay_within_their_promises():
+    """config/live.yaml and config/offline-real.yaml are shipped, so they are
+    part of the contract: live must not be air-gapped, and offline-real must
+    not be able to reach the network even by accident."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "config"
+
+    live = load_settings(root / "live.yaml", environ={})
+    assert live.get("app.offline") is False
+    assert live.get("app.allow_trading") is False
+
+    offline = load_settings(root / "offline-real.yaml", environ={})
+    assert offline.get("app.offline") is True
+    assert offline.get("app.allow_trading") is False
+    # every capability must resolve to the local-file provider alone
+    for capability in ("prices_eod", "fundamentals", "news", "macro",
+                       "universe_equity"):
+        assert offline.provider_chain(capability) == ["csv_local"]
+    for provider in ("sec_edgar", "stooq", "fred", "coingecko", "rss"):
+        assert offline.get(f"providers.{provider}.enabled") is False

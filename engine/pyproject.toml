@@ -18,6 +18,9 @@ dependencies = [
 providers = ["requests>=2.31"]
 api = ["fastapi>=0.110", "uvicorn>=0.27"]
 dev = ["pytest>=7.4", "pytest-cov>=4.1"]
+# Real historical bars for the offline dataset builder. Not needed to run
+# or test the engine; only scripts/build_real_dataset.py reads it.
+real-data = ["bokeh_sampledata>=2024.2"]
 
 [project.scripts]
 research-engine = "research_engine.cli:main"

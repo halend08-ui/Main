@@ -1,0 +1,61 @@
+# ---------------------------------------------------------------------------
+# Offline configuration over real historical bars.
+#
+#   pip install bokeh_sampledata
+#   python3 scripts/build_real_dataset.py --root data/real
+#   research-engine --config config/offline-real.yaml ingest --symbols AAPL FB GOOG IBM MSFT
+#   research-engine --config config/offline-real.yaml compare AAPL FB GOOG IBM MSFT --as-of 2013-03-01
+#
+# Every provider except csv_local is disabled, so this cannot reach the network
+# even by accident. The bars underneath are real (see build_real_dataset.py);
+# they simply stop on 2013-03-01, which makes every run a replay of that date.
+#
+# Use this to exercise the engine, read its reasoning, and check that missing
+# data is reported rather than filled in. Do NOT use it to decide anything: the
+# dataset carries no fundamentals, no news and five biased names.
+# ---------------------------------------------------------------------------
+
+app:
+  environment: offline-real
+  log_level: INFO
+  data_dir: ./data
+  offline: true
+
+providers:
+  sec_edgar: {enabled: false}
+  stooq: {enabled: false}
+  fred: {enabled: false}
+  coingecko: {enabled: false}
+  rss: {enabled: false}
+  csv_local:
+    enabled: true
+    root: real            # resolved under app.data_dir, i.e. data/real
+
+ingestion:
+  # Key name must match default.yaml (ingestion.providers): a misspelt
+  # section is merged in and then ignored, which would silently leave the
+  # live chains in place.
+  providers:
+    prices_eod: [csv_local]
+    fundamentals: [csv_local]
+    crypto_history: [csv_local]
+    news: [csv_local]
+    macro: [csv_local]
+    universe_equity: [csv_local]
+    universe_crypto: [csv_local]
+
+universe:
+  # The dataset is five US equities. Asking for crypto would produce a real
+  # failure on every run, because there is genuinely no crypto data here.
+  asset_classes: [equity]
+  # Market cap and dollar volume are unknown for these names (no share counts
+  # ship with the bars), so a size floor would reject all five. Setting the
+  # floors to zero admits them; it does not invent a size for them.
+  min_market_cap_usd: 0
+  min_dollar_volume_usd: 0
+
+quality:
+  # The bundled history ends 2013-03-01, so measured against a 2013 as-of date
+  # it is not stale. These stay at their live values on purpose: if you point
+  # this config at a newer extract, staleness must still be caught.
+  min_history_days_for_analysis: 120

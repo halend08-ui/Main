@@ -48,6 +48,33 @@ done.
 * **RSS feeds are whatever the operator configures.** Set each feed's tier
   honestly: it directly weights the evidence.
 
+### Offline datasets
+
+Two `csv_local` datasets ship with the repository, and the difference between
+them matters:
+
+| Dataset | Built by | Contents | Honest use |
+| --- | --- | --- | --- |
+| synthetic | `scripts/generate_sample_data.py` | five `SYN`-prefixed assets with prices, fundamentals, macro and news | proving the pipeline runs; never for judging output quality |
+| real | `scripts/build_real_dataset.py` | 12,154 **real** daily bars (AAPL, FB, GOOG, IBM, MSFT), 2000-03-01 to 2013-03-01 | checking the reasoning against a real price series |
+
+The real bars are copied out of the `bokeh_sampledata` package (BSD-3), which
+redistributes them from public sources; the script copies, it does not generate.
+They are checkable against the record: GOOG's series starts at $100.00 on
+2004-08-19 and FB's at $42.05 on 2012-05-18, both actual first trading days.
+
+Three limits, all of them load-bearing:
+
+* the history **stops on 2013-03-01**, so a run is a replay of that date and
+  says nothing about today;
+* **no fundamentals** ship with it, so half the model views have no input and
+  every asset comes back `INSUFFICIENT_DATA`;
+* five large-cap US technology names are a **biased sample**, so a
+  cross-sectional ranking over them is not evidence about the market.
+
+Run it with `--config config/offline-real.yaml`, which disables every network
+provider so an offline run cannot silently become a live one.
+
 ## Not wired in
 
 Schema and repository support exist, but no free provider is configured:

@@ -363,3 +363,37 @@ All notable changes to this project. Phases refer to the staged build plan in
 - `universe --refresh` exited 0 even when it admitted no assets, so scripts and
   cron jobs continued past a universe that was never built and every downstream
   step then failed confusingly. It now returns 1 and says what to do.
+
+## Real offline data
+
+**Added**
+
+- `engine/scripts/build_real_dataset.py`: builds a `csv_local` dataset from
+  12,154 **real** daily bars (AAPL, FB, GOOG, IBM, MSFT, 2000-03-01 to
+  2013-03-01) redistributed by the `bokeh_sampledata` package. The script
+  copies; it never generates. Until now the only offline dataset was synthetic,
+  which proves the pipeline runs but cannot show whether the reasoning survives
+  a real price series.
+- `engine/config/offline-real.yaml`: runs that dataset with every network
+  provider disabled, so an offline run cannot quietly become a live one. The
+  size floors are set to zero because share counts are genuinely unknown for
+  these names - admitting them without a market cap, rather than inventing one.
+- `test_shipped_configs_load_and_stay_within_their_promises`: asserts
+  `live.yaml` is not air-gapped, `offline-real.yaml` is, every capability there
+  resolves to `csv_local` alone, and neither enables trading. 340 tests.
+
+**Result of running it**
+
+All five names return `INSUFFICIENT_DATA`. That is the correct output: no
+filings ship with the bars, so the fundamental, valuation, sentiment and event
+views have no input, and the engine refuses to score rather than filling the
+gaps. It still reports what it can measure, and those figures check out against
+the record - AAPL at $424.83 on 2013-03-01, down 26% over three months, worst
+historical drawdown 82%.
+
+**Fixed**
+
+- `config/offline-real.yaml` first used an `ingestion.chains` key that does not
+  exist; it merged in and was ignored, leaving the live failover chains in
+  place. Renamed to `ingestion.providers` and now covered by the test above.
+  Unknown configuration keys are still accepted silently - worth hardening.
