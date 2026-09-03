@@ -285,6 +285,11 @@ class Backtester:
         if rejected:
             warnings.append(f"{len(rejected)} orders were rejected as unexecutable "
                             f"at the modelled size")
+        if cfg.cost_model.allow_unknown_liquidity:
+            warnings.append(
+                "allow_unknown_liquidity is enabled: fills were assumed for "
+                "assets with no volume data, so this result overstates how "
+                "tradable the strategy actually is")
 
         return BacktestResult(
             dates=equity_dates, equity=equity_values, trades=trades, metrics=metrics,

@@ -70,13 +70,17 @@ class IngestionService:
                as_of: date | None = None) -> dict[str, Any]:
         as_of = as_of or date.today()
         report = IngestionReport(started=as_of, requested=len(symbols))
+        # Macro series are not per-asset: they are fetched once for the whole
+        # run below. Including them in the per-symbol loop would report one
+        # failure per symbol for work that actually succeeded.
+        per_asset_kinds = [k for k in kinds if k != "macro"]
         for symbol in symbols:
             asset = self.repos["assets"].get(symbol)
             if asset is None:
                 report.failures.append(f"{symbol}: not in the asset universe")
                 continue
             ok = False
-            for kind in kinds:
+            for kind in per_asset_kinds:
                 try:
                     written = self._ingest_one(asset, kind, as_of)
                 except (DataUnavailable, ProviderError) as exc:

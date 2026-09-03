@@ -161,28 +161,54 @@ def check_price_series(series: PriceSeries, *, as_of: date | None = None,
                    f"last price is {staleness} days old", days=staleness)
 
     # -- calendar coverage -------------------------------------------------
-    if calendar is not None and len(series) > 5:
-        expected = calendar.count_sessions(series.start, series.end)
+    #
+    # Coverage must be judged at the series' OWN sampling frequency. Vendors
+    # legitimately supply weekly and monthly bars, and measuring a monthly
+    # series against a daily session calendar reports "5% coverage" for data
+    # that is in fact complete.
+    periods_per_year = series.periods_per_year
+    is_daily = periods_per_year >= 250
+    if len(series) > 5:
+        if is_daily and calendar is not None:
+            expected = calendar.count_sessions(series.start, series.end)
+        else:
+            span_years = max((series.end - series.start).days / 365.25, 1e-9)
+            expected = int(round(span_years * periods_per_year))
         if expected > 0:
             coverage = len(series) / expected
             report.coverage = round(min(coverage, 1.0), 4)
             if coverage < min_coverage_ratio:
                 report.add("price.gaps", Severity.WARNING,
-                           f"only {coverage:.0%} of expected sessions present",
-                           observed=len(series), expected=expected)
+                           f"only {coverage:.0%} of expected observations present "
+                           f"at this series' {_frequency_label(periods_per_year)} "
+                           f"frequency",
+                           observed=len(series), expected=expected,
+                           periods_per_year=periods_per_year)
             if coverage > 1.05:
                 report.add("price.unexpected_sessions", Severity.WARNING,
                            "more bars than the calendar has sessions "
                            "(duplicate dates or wrong calendar)",
                            observed=len(series), expected=expected)
 
+    if not is_daily:
+        report.add("price.low_frequency", Severity.INFO,
+                   f"{_frequency_label(periods_per_year)} data: technical "
+                   f"indicators, drawdown depth and volatility estimates are "
+                   f"coarser than the daily equivalents they are named after",
+                   periods_per_year=periods_per_year)
+
     # -- gaps within the series -------------------------------------------
+    # The gap threshold scales with the sampling interval: a 30-day step is a
+    # gap in a daily series and the normal spacing in a monthly one.
+    expected_step = 365.25 / max(periods_per_year, 1)
+    gap_threshold = max(3 if is_crypto else 6, int(expected_step * 2.5))
     gaps = [(series.dates[i - 1], series.dates[i])
             for i in range(1, len(series))
-            if (series.dates[i] - series.dates[i - 1]).days > (3 if is_crypto else 6)]
+            if (series.dates[i] - series.dates[i - 1]).days > gap_threshold]
     if gaps:
         report.add("price.date_gaps", Severity.WARNING,
-                   f"{len(gaps)} multi-day gaps in the series",
+                   f"{len(gaps)} gaps longer than {gap_threshold} days in a "
+                   f"{_frequency_label(periods_per_year)} series",
                    count=len(gaps),
                    largest=max((b - a).days for a, b in gaps),
                    example=f"{gaps[0][0]} -> {gaps[0][1]}")
@@ -214,6 +240,18 @@ def check_price_series(series: PriceSeries, *, as_of: date | None = None,
                        "last 10 closes are identical: feed likely frozen")
 
     return report
+
+
+def _frequency_label(periods_per_year: int) -> str:
+    if periods_per_year >= 300:
+        return "continuous daily"
+    if periods_per_year >= 250:
+        return "daily"
+    if periods_per_year >= 40:
+        return "weekly"
+    if periods_per_year >= 10:
+        return "monthly"
+    return "quarterly or coarser"
 
 
 _SPLIT_RATIOS = (2.0, 3.0, 4.0, 5.0, 7.0, 10.0, 20.0)

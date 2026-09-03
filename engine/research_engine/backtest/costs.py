@@ -31,6 +31,11 @@ class CostModel:
     max_participation: float = 0.10
     min_liquidity_multiple: float = 20.0
     short_borrow_annual_bps: float = 300.0
+    #: Opt-in for price series that carry no volume (some vendor extracts and
+    #: most monthly data). Fills are then ASSUMED possible and charged a penalty
+    #: spread. This weakens the result and every run that uses it says so.
+    allow_unknown_liquidity: bool = False
+    unknown_liquidity_penalty_bps: float = 25.0
 
     def spread_for(self, *, is_crypto: bool, market_cap: float | None) -> float:
         if is_crypto:
@@ -65,6 +70,11 @@ class CostModel:
                 executable = False
                 reason = (f"order is {participation:.0%} of average daily volume "
                           f"(cap {self.max_participation:.0%})")
+        elif self.allow_unknown_liquidity:
+            spread += notional * self.unknown_liquidity_penalty_bps / 10_000
+            reason = ("no volume data: fills assumed under "
+                      "allow_unknown_liquidity, with a penalty spread. Position "
+                      "sizing is unvalidated and the result overstates tradability")
         else:
             executable = False
             reason = "no volume data: executability cannot be established"

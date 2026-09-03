@@ -404,3 +404,64 @@ def test_breadth_calculation():
                for i in range(4)}
     breadth = G.breadth_from_universe({**rising, **falling})
     assert breadth == pytest.approx(8 / 12, abs=0.01)
+
+
+def test_macro_changes_use_the_series_own_frequency():
+    """Year-on-year change must not assume monthly observations.
+
+    A hard-coded 13-observation lookback computes a 3.25-year change on
+    quarterly data. On real FRED CPI through 2009Q3 that reported +7.2% and
+    classified inflation as "high" for a period that was mildly deflationary.
+    """
+    # quarterly index rising 1% a year, sampled 4x a year
+    quarterly = [(dt.date(2000 + i // 4, (i % 4) * 3 + 3, 1), 100 * 1.0025 ** i)
+                 for i in range(40)]
+    state = M.build_state(dt.date(2010, 1, 1), {"CPIAUCSL": quarterly})
+    assert state.readings["CPIAUCSL"].change_12m == pytest.approx(0.01, abs=0.002)
+
+    # the same 1%/year trend sampled monthly must give the same answer
+    monthly = [(dt.date(2000 + i // 12, i % 12 + 1, 1), 100 * (1.01 ** (1 / 12)) ** i)
+               for i in range(120)]
+    monthly_state = M.build_state(dt.date(2010, 1, 1), {"CPIAUCSL": monthly})
+    assert monthly_state.readings["CPIAUCSL"].change_12m == pytest.approx(0.01, abs=0.002)
+
+
+def test_macro_change_is_none_without_enough_history():
+    short = [(dt.date(2009, m * 3, 1), 100.0 + m) for m in range(1, 4)]
+    state = M.build_state(dt.date(2010, 1, 1), {"CPIAUCSL": short})
+    assert state.readings["CPIAUCSL"].change_12m is None
+    assert state.stance["inflation"] == "unknown"
+
+
+def test_horizon_returns_are_calendar_days_not_observation_counts():
+    """The same real move must report identically at any sampling frequency.
+
+    Treating the argument as an observation count made a monthly series report
+    its 63-MONTH return as three months (+593% for AAPL 2004-2010).
+    """
+    daily_dates, daily_prices = [], []
+    day = dt.date(2020, 1, 1)
+    while day <= dt.date(2024, 12, 31):
+        if day.weekday() < 5:
+            daily_dates.append(day)
+            daily_prices.append(100 * 1.10 ** ((day - dt.date(2020, 1, 1)).days / 365.25))
+        day += dt.timedelta(days=1)
+    daily = PriceSeries.from_closes("D", daily_dates, daily_prices)
+
+    monthly_dates = [d for d in daily_dates if d.day <= 3 and
+                     (not daily_dates.index(d) or d.month != daily_dates[
+                         max(daily_dates.index(d) - 1, 0)].month)]
+    monthly = PriceSeries.from_closes(
+        "M", monthly_dates,
+        [100 * 1.10 ** ((d - dt.date(2020, 1, 1)).days / 365.25) for d in monthly_dates])
+
+    daily_1y = R.horizon_returns(daily, [365])[365]
+    monthly_1y = R.horizon_returns(monthly, [365])[365]
+    assert daily_1y == pytest.approx(0.10, abs=0.01)
+    assert monthly_1y == pytest.approx(0.10, abs=0.02)
+
+
+def test_horizon_returns_none_when_history_is_short():
+    days = [dt.date(2026, 1, 1) + dt.timedelta(days=i) for i in range(40)]
+    series = PriceSeries.from_closes("S", days, [100 + i for i in range(40)])
+    assert R.horizon_returns(series, [365])[365] is None

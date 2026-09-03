@@ -212,15 +212,25 @@ def tracking_error(asset: PriceSeries, benchmark: PriceSeries, *,
 
 def horizon_returns(series: PriceSeries, horizons_days: Sequence[int]
                     ) -> dict[int, float | None]:
-    """Trailing total return over each horizon (in trading observations)."""
+    """Trailing total return over each horizon, given in CALENDAR DAYS.
+
+    The calendar-day horizon is converted into an observation count using the
+    series' own sampling frequency. This previously treated the argument as an
+    observation count, so a monthly series asked for "63" returned a 63-MONTH
+    return labelled as three months -- on real AAPL data that reported the
+    2004-2010 gain of +593% as a three-month move.
+    """
     px = series.adj_close
+    periods_per_year = series.periods_per_year
     out: dict[int, float | None] = {}
-    for h in horizons_days:
-        if px.size <= h:
-            out[h] = None
+    for days in horizons_days:
+        observations = max(1, round(days / 365.25 * periods_per_year))
+        if px.size <= observations:
+            out[days] = None
             continue
-        start, end = px[-(h + 1)], px[-1]
-        out[h] = float(end / start - 1.0) if np.isfinite(start) and start > 0 else None
+        start, end = px[-(observations + 1)], px[-1]
+        out[days] = (float(end / start - 1.0)
+                     if np.isfinite(start) and start > 0 else None)
     return out
 
 

@@ -14,6 +14,7 @@ from typing import Any, Mapping, Sequence
 import numpy as np
 
 from research_engine.core.numeric import is_finite, ols_beta_alpha, safe_div
+from research_engine.core.timeutil import infer_periods_per_year
 from research_engine.features import returns as R
 
 
@@ -29,11 +30,19 @@ def equity_curve_returns(values: Sequence[float]) -> np.ndarray:
 def summarize_curve(dates: Sequence[date], values: Sequence[float], *,
                     benchmark_values: Sequence[float] | None = None,
                     risk_free_rate: float = 0.0,
-                    periods_per_year: int = 252) -> dict[str, Any]:
-    """Full performance summary for one equity curve."""
+                    periods_per_year: int | None = None) -> dict[str, Any]:
+    """Full performance summary for one equity curve.
+
+    ``periods_per_year`` is inferred from the observation spacing unless given.
+    Hard-defaulting it to 252 annualised a MONTHLY curve as though it were
+    daily, inflating volatility and Sharpe by sqrt(21) -- a real run reported a
+    Sharpe of 4.11 where the honest figure was about 0.90.
+    """
     values = [float(v) for v in values]
     if len(values) < 2:
         return {"error": "equity curve too short to summarise"}
+    if periods_per_year is None:
+        periods_per_year = infer_periods_per_year(dates)
 
     returns = equity_curve_returns(values)
     years = max((dates[-1] - dates[0]).days / 365.25, 1e-9)
@@ -43,7 +52,7 @@ def summarize_curve(dates: Sequence[date], values: Sequence[float], *,
 
     summary: dict[str, Any] = {
         "start": dates[0].isoformat(), "end": dates[-1].isoformat(),
-        "years": round(years, 2),
+        "years": round(years, 2), "periods_per_year": periods_per_year,
         "total_return": _r(total), "cagr": _r(cagr),
         "volatility": _r(R.volatility(returns, periods_per_year)),
         "sharpe": _r(R.sharpe_ratio(returns, risk_free_rate=risk_free_rate,

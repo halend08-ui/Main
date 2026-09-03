@@ -173,7 +173,7 @@ def analyze(inp: AnalysisInput) -> REC.RecommendationResult:
                                     stats=stats, indicators=indicators,
                                     returns_by_window=(
                                         RET.horizon_returns(inp.series,
-                                                            (21, 63, 126, 252))
+                                                            (30, 91, 182, 365))
                                         if inp.series is not None else {})))
     ensemble = E.combine(views)
     evidence.extend(E.ensemble_evidence(ensemble))
@@ -485,11 +485,11 @@ def _factor_scores(inp: AnalysisInput, snapshot: Any, indicators: Mapping[str, A
 
     returns_by_window = {}
     if inp.series is not None:
-        returns_by_window = RET.horizon_returns(inp.series, (21, 63, 126, 252))
+        returns_by_window = RET.horizon_returns(inp.series, (30, 91, 182, 365))
     momentum_score, momentum_detail = SC.score_momentum(
         returns_by_window=returns_by_window,
         relative_strength=_relative_strength(inp),
-        reversal_1m=returns_by_window.get(21))
+        reversal_1m=returns_by_window.get(30))
     add("momentum", momentum_score, momentum_detail)
 
     technical_score, technical_detail = SC.score_technical(
@@ -712,7 +712,7 @@ def _view_rationales(snapshot: Any, valuation: Any, risk_profile: RK.RiskProfile
 
     returns_by_window = returns_by_window or {}
     momentum_parts = [f"{label}: {returns_by_window[window]:+.0%}"
-                      for label, window in (("3m", 63), ("6m", 126), ("12m", 252))
+                      for label, window in (("3m", 91), ("6m", 182), ("12m", 365))
                       if returns_by_window.get(window) is not None]
     if momentum_parts:
         out["momentum"] = "trailing return " + ", ".join(momentum_parts)

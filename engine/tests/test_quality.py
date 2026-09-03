@@ -252,3 +252,40 @@ def test_syndicated_news_detected():
     items = [Item("Acme beats estimates")] * 8 + [Item("Something else")]
     report = check_news(items, subject="ACME", as_of=dt.date(2026, 1, 6))
     assert "news.duplicated" in report.codes()
+
+
+# ------------------------------------------------- sampling frequency ------
+def test_monthly_series_is_not_penalised_against_a_daily_calendar():
+    """Vendors legitimately supply monthly bars.
+
+    Judging a complete monthly series against a daily session calendar reported
+    "5% of expected sessions present" for data with nothing missing.
+    """
+    dates = [dt.date(2000, month % 12 + 1, 1).replace(year=2000 + month // 12)
+             for month in range(120)]
+    series = PriceSeries.from_closes("M", dates, [100 + i for i in range(120)])
+    report = finalize(check_price_series(series, as_of=dates[-1],
+                                         calendar=EQUITY_CALENDAR))
+    assert "price.gaps" not in report.codes()
+    assert "price.date_gaps" not in report.codes()
+    assert report.coverage is not None and report.coverage > 0.9
+    # but the reader is told the data is coarse
+    assert "price.low_frequency" in report.codes()
+    assert report.grade >= DataQuality.GOOD
+
+
+def test_a_genuinely_incomplete_monthly_series_is_still_flagged():
+    dates = [dt.date(2000, 1, 1) + dt.timedelta(days=30 * i) for i in range(120)]
+    kept = dates[:40] + dates[80:]          # ~40 months missing in the middle
+    series = PriceSeries.from_closes("M", kept, [100 + i for i in range(len(kept))])
+    report = check_price_series(series, as_of=kept[-1], calendar=EQUITY_CALENDAR)
+    assert "price.gaps" in report.codes() or "price.date_gaps" in report.codes()
+
+
+def test_daily_series_still_uses_the_session_calendar(price_bars):
+    bars = price_bars(300, start=dt.date(2024, 1, 1))
+    kept = bars[:100] + bars[160:]
+    report = check_price_series(PriceSeries.from_rows("D", kept),
+                                as_of=kept[-1]["date"], calendar=EQUITY_CALENDAR)
+    assert "price.gaps" in report.codes()
+    assert "price.low_frequency" not in report.codes()

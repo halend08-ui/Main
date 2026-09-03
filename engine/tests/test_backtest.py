@@ -249,3 +249,41 @@ def test_heavily_searched_results_are_deflated():
     assert honest["sharpe_deflated"] == pytest.approx(2.5)
     assert tortured["sharpe_deflated"] < 1.5
     assert tortured["overfitting"]["warnings"]
+
+
+def test_unknown_liquidity_is_opt_in_and_loud(price_bars):
+    """Volume-less data must not silently become tradable."""
+    strict = CostModel()
+    permissive = CostModel(allow_unknown_liquidity=True)
+    assert not strict.estimate(notional=10_000, adv=None)["executable"]
+    lenient = permissive.estimate(notional=10_000, adv=None)
+    assert lenient["executable"]
+    assert lenient["bps"] > strict.estimate(notional=10_000, adv=1e9)["bps"]
+    assert "overstates tradability" in lenient["reason"]
+
+    universe = {"A": AssetHistory(
+        symbol="A",
+        series=PriceSeries.from_closes(
+            "A", [dt.date(2024, 1, 1) + dt.timedelta(days=i) for i in range(400)],
+            [100 + i for i in range(400)]),
+        listed_date=dt.date(2020, 1, 1), market_cap=5e9)}
+    result = Backtester(universe, _config(universe, cost_model=permissive)).run(
+        lambda as_of, visible: {"A": 0.5})
+    assert any("allow_unknown_liquidity is enabled" in w for w in result.warnings)
+
+
+def test_curve_metrics_infer_the_sampling_frequency():
+    """Annualising a monthly curve as daily inflates Sharpe by sqrt(21)."""
+    import random
+    rng = random.Random(4)
+    monthly_dates = [dt.date(2015 + i // 12, i % 12 + 1, 1) for i in range(120)]
+    values, level = [], 100.0
+    for _ in range(120):
+        level *= 1 + rng.gauss(0.006, 0.03)      # real month-to-month variation
+        values.append(level)
+    inferred = summarize_curve(monthly_dates, values)
+    forced_daily = summarize_curve(monthly_dates, values, periods_per_year=252)
+    assert inferred["periods_per_year"] == 12
+    # the wrong annualisation inflates volatility by about sqrt(252/12) = 4.6x
+    assert forced_daily["volatility"] > inferred["volatility"] * 4
+    assert inferred["cagr"] == pytest.approx(forced_daily["cagr"])   # CAGR is time-based

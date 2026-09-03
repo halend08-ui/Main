@@ -142,8 +142,10 @@ class ResearchAgent:
         if bundle.series is None:
             return {"note": "no price history"}
         out: dict[str, Any] = {}
-        windows = {"1w": 5, "1m": 21, "3m": 63, "6m": 126, "1y": 252,
-                   "3y": 756, "5y": 1260, "10y": 2520}
+        # calendar days per label; horizon_returns converts using the
+        # series' own frequency
+        windows = {"1w": 7, "1m": 30, "3m": 91, "6m": 182, "1y": 365,
+                   "3y": 1095, "5y": 1826, "10y": 3652}
         trailing = RET.horizon_returns(bundle.series, list(windows.values()))
         for label, window in windows.items():
             value = trailing.get(window)

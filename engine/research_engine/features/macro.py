@@ -22,6 +22,7 @@ from datetime import date
 from typing import Any, Mapping, Sequence
 
 from research_engine.core.numeric import clamp, mean, pct_change, safe_div
+from research_engine.core.timeutil import infer_periods_per_year
 from research_engine.core.types import ClaimType, DataQuality, Evidence
 
 #: Sector sensitivities to macro factors, as directional priors (-1..+1).
@@ -83,16 +84,33 @@ class MacroState:
 
 def _reading(series_id: str, label: str,
              points: Sequence[tuple[date, float]]) -> MacroReading:
+    """Build a reading, using the series' OWN observation frequency.
+
+    Macro series arrive at different frequencies: CPI and unemployment monthly,
+    GDP quarterly, some weekly. Hard-coding a 13-observation lookback for the
+    year-on-year change silently computes a 3.25-year change on quarterly data
+    (which reported +7.2% CPI growth for a period that was in fact mildly
+    deflationary). The lookback is therefore derived from the observation
+    spacing, and returns None when there is not enough history.
+    """
     values = [v for _, v in points]
     if not values:
         return MacroReading(series_id, label, None, None)
     latest = values[-1]
     as_of = points[-1][0]
-    change_3m = pct_change(latest, values[-4]) if len(values) >= 4 else None
-    change_12m = pct_change(latest, values[-13]) if len(values) >= 13 else None
+
+    periods_per_year = infer_periods_per_year([d for d, _ in points])
+    quarter_lag = max(1, round(periods_per_year / 4))
+    year_lag = max(1, round(periods_per_year))
+
+    change_3m = (pct_change(latest, values[-(quarter_lag + 1)])
+                 if len(values) > quarter_lag else None)
+    change_12m = (pct_change(latest, values[-(year_lag + 1)])
+                  if len(values) > year_lag else None)
+
     percentile = None
-    window = values[-60:]
-    if len(window) >= 24:
+    window = values[-(year_lag * 5):] if year_lag else values[-60:]
+    if len(window) >= max(8, year_lag * 2):
         below = sum(1 for v in window if v <= latest)
         percentile = below / len(window)
     return MacroReading(series_id, label, latest, as_of, change_3m, change_12m,

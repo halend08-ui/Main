@@ -212,3 +212,19 @@ def test_refresh_reports_provider_health_and_coverage(service_env):
     assert "health" in result
     assert "providers" in result["health"]
     assert result["health"]["coverage"]["total"] == 1
+
+
+def test_macro_is_not_requested_once_per_symbol(service_env):
+    """Macro series are per-run, not per-asset.
+
+    Including "macro" in the per-symbol loop reported one failure per symbol for
+    an operation that had actually succeeded.
+    """
+    service, repos, _ = service_env
+    repos["assets"].upsert(symbol="AAPL", asset_class="equity")
+    repos["assets"].upsert(symbol="MSFT", asset_class="equity")
+    result = service.ingest(["AAPL", "MSFT"], kinds=("prices", "macro"),
+                            as_of=dt.date(2026, 1, 28))
+    assert not any("macro" in failure for failure in result["failures"]), \
+        result["failures"]
+    assert "macro" in result["per_kind"]

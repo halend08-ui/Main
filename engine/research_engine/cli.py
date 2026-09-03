@@ -327,7 +327,9 @@ def cmd_backtest(args: argparse.Namespace, settings: Settings) -> int:
         cost_model=CostModel(
             commission_bps=float(settings.get("backtest.commission_bps", 5)),
             spread_bps=float(settings.get("backtest.slippage_bps", 10)),
-            crypto_spread_bps=float(settings.get("backtest.crypto_slippage_bps", 30))),
+            crypto_spread_bps=float(settings.get("backtest.crypto_slippage_bps", 30)),
+            allow_unknown_liquidity=bool(
+                settings.get("backtest.allow_unknown_liquidity", False))),
         label_horizon_days=int(settings.get("backtest.label_horizon_days", 21)),
         embargo_days=int(settings.get("backtest.embargo_days", 21)),
         train_window_days=int(settings.get("backtest.train_window_days", 1260)),
@@ -368,11 +370,19 @@ def _strategy(name: str):
         return {s: 1.0 / max(len(symbols), 1) for s in symbols}
 
     def momentum(as_of, visible):
+        """Six-month trailing momentum, measured in calendar time.
+
+        Uses horizon_returns rather than a fixed observation offset: a hard
+        `px[-126]` means six months on daily bars but eleven YEARS on monthly
+        ones, so the strategy silently traded nothing on lower-frequency data.
+        """
+        from research_engine.features.returns import horizon_returns
+
         ranked = []
         for symbol, asset in visible.items():
-            px = asset.series.adj_close
-            if px.size > 130 and px[-126] > 0:
-                ranked.append((symbol, float(px[-1] / px[-126] - 1)))
+            trailing = horizon_returns(asset.series, [182]).get(182)
+            if trailing is not None:
+                ranked.append((symbol, trailing))
         ranked.sort(key=lambda item: -item[1])
         chosen = [s for s, _ in ranked[:10]]
         return {s: 0.1 for s in chosen}

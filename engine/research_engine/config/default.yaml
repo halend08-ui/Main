@@ -219,6 +219,10 @@ backtest:
   slippage_bps: 10
   crypto_slippage_bps: 30
   min_liquidity_multiple: 20        # require ADV >= 20x position
+  # Only enable for datasets with no volume column. Fills are then assumed
+  # rather than verified; results overstate how tradable the strategy is, and
+  # every run says so in its warnings.
+  allow_unknown_liquidity: false
   train_window_days: 1260
   test_window_days: 252
   step_days: 252

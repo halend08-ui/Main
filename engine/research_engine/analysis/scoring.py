@@ -245,7 +245,9 @@ def score_momentum(*, returns_by_window: Mapping[int, float | None],
     The 12-1 convention (skip the most recent month) is used because the last
     month tends to mean-revert; including it dilutes the medium-term signal.
     """
-    horizons = {21: 0.5, 63: 1.0, 126: 1.2, 252: 1.0}
+    # keyed by CALENDAR days, so the same weights apply whatever the sampling
+    # frequency of the underlying series
+    horizons = {30: 0.5, 91: 1.0, 182: 1.2, 365: 1.0}
     parts: list[tuple[float, float]] = []
     detail: dict[str, Any] = {}
     for window, weight in horizons.items():
