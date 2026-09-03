@@ -51,9 +51,7 @@ def build_app(settings: Any, services: Mapping[str, Any] | None = None):
                        allow_headers=["*"])
 
     def _latest_as_of() -> date | None:
-        row = repos["recommendations"].db.query_one(
-            "SELECT MAX(as_of) AS d FROM recommendations")
-        return to_date(row["d"]) if row and row.get("d") else None
+        return repos["recommendations"].latest_as_of()
 
     # -- meta --------------------------------------------------------------
     @app.get("/api/health")
@@ -125,6 +123,11 @@ def build_app(settings: Any, services: Mapping[str, Any] | None = None):
         order = [r.value for r in RiskLevel]
         max_index = order.index(max_risk) if max_risk in order else len(order)
 
+        # One lookup for the whole universe rather than one query per row:
+        # the screener runs over the full analysed set on every keystroke.
+        market_caps = {a.symbol: a.market_cap_usd
+                       for a in repos["assets"].list(active_only=False, limit=10_000)}
+
         items = []
         for row in repos["recommendations"].on_date(as_of, limit=1000):
             if (row.get("score") or 0) < min_score:
@@ -138,10 +141,10 @@ def build_app(settings: Any, services: Mapping[str, Any] | None = None):
             risk = row.get("risk_level")
             if risk in order and order.index(risk) > max_index:
                 continue
-            asset = repos["assets"].get(row["symbol"])
-            if min_market_cap and (not asset or not asset.market_cap_usd
-                                   or asset.market_cap_usd < min_market_cap):
-                continue
+            if min_market_cap:
+                cap = market_caps.get(row["symbol"])
+                if cap is None or cap < min_market_cap:
+                    continue
             items.append(_recommendation_summary(row))
         items.sort(key=lambda i: i.get("score") or 0, reverse=True)
         return {"as_of": as_of.isoformat(), "items": items[:limit],

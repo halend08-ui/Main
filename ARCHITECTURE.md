@@ -145,6 +145,32 @@ each producing a new immutable version. See `MODELING.md`.
 | A sell trigger | a `SellCondition` | `analysis/sell.py` `build_conditions` |
 | A backtest strategy | a `Strategy` callable | pass to `Backtester.run` |
 
+## Performance
+
+Measured on a single container core, SQLite on local disk:
+
+| Operation | Scale | Time |
+| --- | --- | --- |
+| Load prices + fundamentals | 500 assets, 300k bars, 25k facts | 8.6 s |
+| Full daily loop | 500 assets analysed end to end | 44 s (88 ms/asset) |
+| Database size | 500 assets x 600 sessions | 71 MB |
+
+At 88 ms per asset, a 600-asset stage-2 scan takes about a minute and a
+5,000-asset stage-1 screen is dominated by prioritisation, not analysis. The
+funnel — not concurrency — is what makes a large universe affordable.
+
+**On parallelism.** Thread-parallel analysis was implemented and measured, and
+it made things *worse*: 120 assets took 9.5 s sequentially and 23.0 s across
+four threads (GIL contention on numpy work, plus SQLite lock contention). It was
+therefore not shipped, and `pipeline.parallel_workers` is documented as unused.
+Process-based parallelism would work but adds per-worker database connections
+and pickling of feature bundles for a batch job that already finishes in
+minutes; that trade is not currently worth making.
+
+Indexes are sized for the access patterns that matter: `(asset_id, date DESC)`
+on prices, `(asset_id, filed_date)` for point-in-time fundamental reads, and
+`(as_of DESC, total_score DESC)` for the daily ranking.
+
 ## Known limitations
 
 These are design boundaries, not bugs; each is stated where it matters in the

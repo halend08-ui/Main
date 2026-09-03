@@ -25,6 +25,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Iterable, Mapping, Sequence
 
 from research_engine.core.numeric import clamp, mean
+from research_engine.core.timeutil import current_as_of
 from research_engine.core.types import ClaimType, DataQuality, Evidence, SourceTier
 
 POSITIVE_TERMS: dict[str, float] = {
@@ -154,8 +155,8 @@ def analyse(items: Sequence[Any], *, as_of: date | None = None,
         return SentimentReading(None, None, None, 0, 0.0, 0.0, 0.0,
                                 warnings=["no news items available"])
 
-    reference = as_of or max((getattr(i, "published_at", None) or datetime.now()).date()
-                             for i in items)
+    reference = as_of or max(
+        (getattr(i, "published_at", None) or current_as_of()).date() for i in items)
     headline_scores: list[tuple[float, float]] = []
     body_scores: list[tuple[float, float]] = []
     hype_values: list[float] = []

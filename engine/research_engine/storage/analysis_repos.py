@@ -169,6 +169,11 @@ class RecommendationRepository:
             f"WHERE r.as_of=? {extra} ORDER BY r.score DESC LIMIT {int(limit)}", params)
         return [_decode_rec(r) for r in rows]
 
+    def latest_as_of(self) -> date | None:
+        """The most recent date any recommendation was computed for."""
+        row = self.db.query_one("SELECT MAX(as_of) AS d FROM recommendations")
+        return to_date(row["d"]) if row and row.get("d") else None
+
     def changes(self, as_of: date | str, previous: date | str) -> list[dict[str, Any]]:
         """Assets whose recommendation differs between two dates."""
         rows = self.db.query(

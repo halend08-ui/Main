@@ -22,6 +22,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Iterable, Mapping, Sequence
 
 from research_engine.core.numeric import clamp
+from research_engine.core.timeutil import current_as_of
 from research_engine.core.types import (ClaimType, DataQuality, EventImpact,
                                         Evidence, SourceTier)
 
@@ -148,7 +149,7 @@ def classify(headline: str, *, summary: str | None = None,
                     0.2, 0.92)
                 return DetectedEvent(
                     event_type=rule.event_type, impact=rule.impact,
-                    occurred_at=occurred_at or datetime.now(),
+                    occurred_at=occurred_at or current_as_of(),
                     headline=headline.strip(), source=source, source_tier=source_tier,
                     expected_move=rule.expected_move, duration_days=rule.duration_days,
                     changes_thesis=rule.thesis_relevant, confidence=confidence,

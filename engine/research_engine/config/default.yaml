@@ -242,7 +242,12 @@ pipeline:
   stage4_max_assets: 25
   discovery_max_new_per_day: 50
   report_dir: reports
-  parallel_workers: 8
+  # Reserved, currently unused. Thread-parallel analysis was measured at 2.4x
+  # SLOWER than sequential (GIL contention on numpy work plus SQLite lock
+  # contention): 120 assets took 9.5s sequentially, 23.0s across 4 threads.
+  # The funnel, not concurrency, is what keeps a large universe affordable.
+  # See ARCHITECTURE.md, "Performance".
+  parallel_workers: 1
 
 alerts:
   enabled: true

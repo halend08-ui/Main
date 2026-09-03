@@ -21,6 +21,7 @@ from research_engine.analysis.pipeline import analyze
 from research_engine.analysis.recommendation import RecommendationResult
 from research_engine.core.errors import DataUnavailable
 from research_engine.core.logging import get_logger
+from research_engine.core.timeutil import current_as_of
 from research_engine.core.numeric import median, percentile
 from research_engine.core.types import AssetClass, ClaimType, DataQuality, SourceTier
 from research_engine.features import returns as RET
@@ -66,7 +67,9 @@ class ResearchAgent:
 
     def investigate(self, symbol: str, *, as_of: date | None = None,
                     peer_symbols: Sequence[str] = ()) -> ResearchDossier:
-        as_of = as_of or date.today()
+        # current_as_of() respects an active as_of_context, so replaying a past
+        # date produces the answer that date's data supported.
+        as_of = as_of or current_as_of().date()
         symbol = symbol.upper()
         unanswered: list[str] = []
 
@@ -213,14 +216,28 @@ class ResearchAgent:
             terminal_growth=float(self.settings.get(
                 "analysis.valuation.terminal_growth", 0.025)))
         implied = outcome.get("implied_growth")
-        historical = FUND.growth_profile(bundle.annual, "revenue").get("cagr_5y")
+        profile = FUND.growth_profile(bundle.annual, "revenue")
+        # Prefer the longest window actually available at this as-of date: a
+        # point-in-time run early in a fiscal year may not yet have five filed
+        # years, and saying nothing would be worse than saying "over 3 years".
+        historical, window = next(
+            ((profile.get(f"cagr_{years}y"), years) for years in (10, 5, 3, 1)
+             if profile.get(f"cagr_{years}y") is not None), (None, None))
         if implied is not None and historical is not None:
+            outcome["delivered_growth"] = round(historical, 4)
+            outcome["delivered_growth_window_years"] = window
             outcome["comparison"] = (
                 f"the price implies {implied:.1%} annual cash-flow growth; the "
-                f"company has actually delivered {historical:.1%} over five years"
+                f"company has actually delivered {historical:.1%} over {window} "
+                f"year(s)"
                 + (" -- the market is asking for an acceleration"
                    if implied > historical else
                    " -- the market is pricing a slowdown"))
+        elif implied is not None:
+            outcome["comparison"] = (
+                f"the price implies {implied:.1%} annual cash-flow growth; no "
+                f"multi-year revenue history was filed as of this date, so there "
+                f"is nothing to compare it against")
         outcome["applicable"] = True
         return outcome
 
