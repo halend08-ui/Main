@@ -295,3 +295,44 @@ All notable changes to this project. Phases refer to the staged build plan in
   about a number 38% higher. It now says the downside scenario is not pricing
   in a loss, and that the risk is the bear assumptions being insufficiently
   pessimistic.
+
+### Parallel scanning and cross-sectional comparison
+
+**Added**
+
+- `pipeline.parallel`: process-pool scanning of the universe. Threads were
+  measured 2.4x *slower* on this workload (GIL plus SQLite lock contention);
+  processes scale close to linearly - 1,000 assets in 63.3 s on one worker,
+  17.1 s on four (3.70x). Workers are stateless and picklable, each opening its
+  own database handle; a worker that dies loses only its own slice, which is
+  recorded, and the remaining slices complete. The pool is skipped below ~60
+  assets, where spawning costs more than it saves.
+- `analysis.comparison`: ranking assets against each other rather than against
+  fixed thresholds.
+  - Peer groups by sector, falling back to capitalisation band and then asset
+    class, because a percentile computed over three members is not a percentile.
+  - Per-factor percentile ranks within the peer group, with named strengths and
+    weaknesses ("ROIC in the top 8% of Technology peers").
+  - Best-of-breed per group, then a cross-group ranking on risk-adjusted
+    expected return, so the shortlist is not simply whichever sector is in
+    favour. Both the peer-relative and absolute rankings are produced and the
+    engine names where they disagree, including flagging when the absolute top
+    10 is concentrated in one group.
+  - Head-to-head comparison that reports the deciding factors and states when
+    the comparison itself is weak (different sectors, different data quality,
+    an unscored side).
+  - The downside denominator is floored by risk level: a bear case implying a
+    2% worst case is a modelling failure, not an opportunity, and dividing by it
+    let one asset dominate the ranking with a ratio of 7.63. Rows using the
+    floor are marked in the output.
+- `research-engine scan` and `research-engine compare` commands; the daily loop
+  gained a comparison stage that attaches peer-relative evidence back onto each
+  individual recommendation, and the daily report gained a "Best Of Breed"
+  section with the disagreements listed.
+
+**Changed**
+
+- `pipeline.parallel_workers` was documented as unused after the thread
+  experiment. It is now live and defaults to 4. `ARCHITECTURE.md` carries both
+  measurements, since the earlier conclusion was correct about threads and
+  wrong as a general statement about parallelism.

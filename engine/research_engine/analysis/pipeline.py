@@ -251,6 +251,7 @@ def analyze(inp: AnalysisInput) -> REC.RecommendationResult:
         risks=risks, invalidation=invalidation, sell_conditions=sell_conditions,
         bear_case=bear_case, bull_case=bull_case, gates_failed=gate_failures,
         model_version=inp.model_version, data_version=inp.data_version,
+        factor_scores={f.name: f.score for f in factors},
         ensemble=ensemble)
     if recommendation is Recommendation.INSUFFICIENT_DATA:
         # The phrase is contractual: callers and readers look for exactly this.

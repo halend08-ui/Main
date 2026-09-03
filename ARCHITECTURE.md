@@ -30,11 +30,13 @@ it is rejected at load time.
                  ┌───────────────────▼──────────────────────────┐
   ANALYSIS       │ analysis/  scoring · risk · ensemble ·        │
                  │            probability · events · sentiment · │
-                 │            anomaly · sell · recommendation    │
+                 │            anomaly · sell · comparison ·      │
+                 │            recommendation                     │
                  └───────────────────┬──────────────────────────┘
                  ┌───────────────────▼──────────────────────────┐
-  ORCHESTRATION  │ pipeline/  discovery · prioritisation · daily │
-                 │            loop · alerts · reports            │
+  ORCHESTRATION  │ pipeline/  discovery · prioritisation ·       │
+                 │            parallel scan · daily loop ·       │
+                 │            alerts · reports                   │
                  └───────────────────┬──────────────────────────┘
                  ┌───────────────────▼──────────────────────────┐
   EVALUATION     │ learning/  evaluation · performance ·         │
@@ -129,10 +131,15 @@ each producing a new immutable version. See `MODELING.md`.
    standard analysis → deep research → high-conviction review.
 5. `analysis.pipeline.analyze` runs per asset: quality → features → factor
    scores → ensemble → risk → valuation → probability → gates → recommendation.
-6. Results, predictions, alerts and memos are persisted.
-7. Predictions whose horizon has elapsed are graded; performance is recomputed
+   With `pipeline.parallel_workers > 1` this runs across worker processes.
+6. `analysis.comparison` ranks every analysed asset against its peer group,
+   picks the leaders per group, and compares those across groups on
+   risk-adjusted expected return — so the shortlist is not simply whichever
+   sector is currently in favour.
+7. Results, predictions, alerts and memos are persisted.
+8. Predictions whose horizon has elapsed are graded; performance is recomputed
    per bucket; a weight proposal is generated (never auto-applied).
-8. The daily report is rendered, including the system's self-evaluation.
+9. The daily report is rendered, including the system's self-evaluation.
 
 ## Extension points
 
@@ -153,19 +160,34 @@ Measured on a single container core, SQLite on local disk:
 | --- | --- | --- |
 | Load prices + fundamentals | 500 assets, 300k bars, 25k facts | 8.6 s |
 | Full daily loop | 500 assets analysed end to end | 44 s (88 ms/asset) |
+| Parallel scan + ranking | 1,000 assets, 4 workers | 17 s (61 assets/s) |
 | Database size | 500 assets x 600 sessions | 71 MB |
 
 At 88 ms per asset, a 600-asset stage-2 scan takes about a minute and a
 5,000-asset stage-1 screen is dominated by prioritisation, not analysis. The
 funnel — not concurrency — is what makes a large universe affordable.
 
-**On parallelism.** Thread-parallel analysis was implemented and measured, and
-it made things *worse*: 120 assets took 9.5 s sequentially and 23.0 s across
-four threads (GIL contention on numpy work, plus SQLite lock contention). It was
-therefore not shipped, and `pipeline.parallel_workers` is documented as unused.
-Process-based parallelism would work but adds per-worker database connections
-and pickling of feature bundles for a batch job that already finishes in
-minutes; that trade is not currently worth making.
+**On parallelism.** Two approaches were implemented and measured.
+
+*Threads made it worse.* 120 assets took 9.5 s sequentially and 23.0 s across
+four threads — GIL contention on numpy work plus SQLite lock contention. Not
+shipped.
+
+*Processes scale close to linearly.* Each worker gets its own interpreter and
+its own database handle, so neither bottleneck applies. Measured over 1,000
+assets on 4 cores:
+
+| Workers | Time | Assets/s | Speedup |
+| --- | --- | --- | --- |
+| 1 | 63.3 s | 15.8 | 1.00x |
+| 2 | 32.6 s | 30.7 | 1.94x |
+| 4 | 17.1 s | 58.6 | 3.70x |
+
+`pipeline/parallel.py` ships this. The pool is skipped below ~60 assets, where
+spawning interpreters costs more than it saves. Workers are stateless: they
+receive a symbol list and an as-of date, and return flat records — never live
+objects holding a connection. A worker that dies loses its own slice and is
+recorded; the other slices complete.
 
 Indexes are sized for the access patterns that matter: `(asset_id, date DESC)`
 on prices, `(asset_id, filed_date)` for point-in-time fundamental reads, and

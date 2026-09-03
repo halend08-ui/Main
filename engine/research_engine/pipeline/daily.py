@@ -147,6 +147,8 @@ class DailyPipeline:
                                                     market))
         run.analyzed = analysis.get("results", {})
 
+        comparison = self._step(run, "compare",
+                                lambda: self._compare(as_of, run.analyzed))
         changes = self._step(run, "detect_changes",
                              lambda: self._changes(as_of, run.analyzed))
         positions = self._step(run, "portfolio", lambda: self._portfolio(as_of,
@@ -167,7 +169,7 @@ class DailyPipeline:
 
         report = self._step(run, "report", lambda: self._report(
             as_of, run, market, discoveries, changes, positions, performance,
-            learning, ingest))
+            learning, ingest, comparison))
         run.report = report.get("report")
 
         log.info("daily run complete", as_of=str(as_of), ok=run.ok,
@@ -315,6 +317,41 @@ class DailyPipeline:
                                       "gates_failed": result.gates_failed},
                            sell_conditions=[c.to_dict() for c in result.sell_conditions],
                            invalidation=result.invalidation)
+
+    def _compare(self, as_of: date, results: Mapping[str, Any]) -> dict[str, Any]:
+        """Rank the analysed assets against each other, not just against thresholds.
+
+        An absolute score answers "is this good?"; choosing among thousands needs
+        "is this better than the alternatives, and why?". Peer-relative evidence
+        is attached back onto each recommendation so an individual report says
+        where the asset stands among its own peers.
+        """
+        from research_engine.analysis import comparison as CMP
+
+        if not results:
+            return {"comparison": None, "note": "nothing was analysed"}
+
+        candidates = []
+        for symbol, result in results.items():
+            try:
+                asset = self.data.asset(symbol)
+                sector, cap, klass = (asset.sector, asset.market_cap_usd,
+                                      asset.asset_class.value)
+            except Exception:
+                sector, cap, klass = None, None, "equity"
+            candidates.append(CMP.candidate_from_result(
+                result, sector=sector, market_cap=cap, asset_class=klass))
+
+        outcome = CMP.compare(candidates, as_of=as_of,
+                              per_group=int(self.settings.get(
+                                  "pipeline.leaders_per_peer_group", 3)))
+        for symbol, profile in outcome.profiles.items():
+            result = results.get(symbol)
+            if result is not None:
+                result.evidence.extend(CMP.comparison_evidence(profile))
+        return {"comparison": outcome, "groups": len(outcome.peer_groups),
+                "ranked": len(outcome.final_ranking),
+                "excluded": len(outcome.excluded)}
 
     def _changes(self, as_of: date, results: Mapping[str, Any]) -> dict[str, Any]:
         buckets: dict[str, list[dict[str, Any]]] = {
@@ -550,8 +587,8 @@ class DailyPipeline:
     def _report(self, as_of: date, run: DailyRunResult, market: Mapping[str, Any],
                 discoveries: Mapping[str, Any], changes: Mapping[str, Any],
                 portfolio: Mapping[str, Any], performance: Mapping[str, Any],
-                learning: Mapping[str, Any],
-                ingest: Mapping[str, Any]) -> dict[str, Any]:
+                learning: Mapping[str, Any], ingest: Mapping[str, Any],
+                comparison: Mapping[str, Any] | None = None) -> dict[str, Any]:
         ranked = sorted((r for r in run.analyzed.values() if r.score is not None),
                         key=lambda r: r.score, reverse=True)
         report = DailyReport(
@@ -563,6 +600,8 @@ class DailyPipeline:
             model_performance=dict(performance),
             self_evaluation=_self_evaluation(performance, learning, run),
             data_health=dict(ingest.get("health", {})),
+            comparison=((comparison or {}).get("comparison").to_dict()
+                        if (comparison or {}).get("comparison") else {}),
             warnings=[f"step '{s.name}' failed: {s.error}"
                       for s in run.steps if not s.ok])
         repo = self.repos.get("reports")

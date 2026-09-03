@@ -251,13 +251,16 @@ pipeline:
   stage3_max_assets: 120
   stage4_max_assets: 25
   discovery_max_new_per_day: 50
+  # How many leaders are taken from each peer group before the cross-group
+  # comparison. Higher values widen the shortlist; 1 gives one name per sector.
+  leaders_per_peer_group: 3
   report_dir: reports
-  # Reserved, currently unused. Thread-parallel analysis was measured at 2.4x
-  # SLOWER than sequential (GIL contention on numpy work plus SQLite lock
-  # contention): 120 assets took 9.5s sequentially, 23.0s across 4 threads.
-  # The funnel, not concurrency, is what keeps a large universe affordable.
-  # See ARCHITECTURE.md, "Performance".
-  parallel_workers: 1
+  # Worker PROCESSES for the parallel scan. Threads do not help this workload
+  # (measured 2.4x slower: GIL plus SQLite lock contention); processes scale
+  # close to linearly (measured 3.7x on 4 cores over 1,000 assets). Set to the
+  # core count. Below ~60 assets the pool is skipped: spawning costs more than
+  # it saves. See ARCHITECTURE.md, "Performance".
+  parallel_workers: 4
 
 alerts:
   enabled: true

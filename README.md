@@ -32,10 +32,11 @@ engine/                Python research engine (the system)
     ingestion/         providers, rate limiting, caching, failover, universe
     quality/           data-quality grading, leakage and bias detection
     features/          technical, fundamental, valuation, crypto, macro, regime
-    analysis/          scoring, risk, ensemble, probability, recommendation, memo
+    analysis/          scoring, risk, ensemble, probability, comparison,
+                       recommendation, memo, agent
     backtest/          walk-forward engine, costs, metrics
     learning/          prediction tracking, calibration, model registry
-    pipeline/          daily research loop, discovery, alerts, reports
+    pipeline/          daily loop, discovery, parallel scan, alerts, reports
     api/               read-only HTTP API for the dashboard
   tests/               offline test suite (no network required)
 web/                   React + Vite dashboard
@@ -88,6 +89,41 @@ python -m research_engine.cli serve                    # read-only API on :8000
 ```bash
 cd web && npm install && npm run dev                   # dashboard on :5173
 ```
+
+## Scanning thousands of assets and comparing them
+
+```bash
+research-engine scan --workers 8 --per-group 1 --top 25
+research-engine compare NVDA AMD
+```
+
+`scan` analyses the universe across worker processes, then ranks it
+**cross-sectionally**: each asset is percentile-ranked against its own sector
+peers, the leaders of each peer group are taken, and those winners are compared
+across groups on risk-adjusted expected return. A global top-N on raw score
+reliably returns whichever sector is currently in favour; this does not.
+
+Measured on 4 cores: 1,000 assets in 17 s (3.7x the single-process time).
+
+```
+BEST OF BREED (top 1 within each peer group)
+group                    symbol      score  pctile  base ret  risk-adj
+Financials               S0292          68    100%       47%      1.56
+Energy                   S0773          68    100%       50%      1.77
+Technology               S0700          67    100%       44%      1.44
+
+FINAL RANKING (compared across groups on risk-adjusted expected return)
+ 1. S0773  Energy      risk-adj 1.77  base 50%  WATCH
+ 2. S0292  Financials  risk-adj 1.56  base 47%  WATCH
+
+WHERE THE TWO VIEWS DISAGREE
+  * S0700 ranks 3 on the peer-relative view but 15 on raw score: it is top of
+    its Technology peer group without being a high scorer in absolute terms
+```
+
+`compare` puts two assets side by side factor by factor and says which wins and
+why, flagging when the comparison itself is weak (different sectors, different
+data quality).
 
 ## Running against real data
 
@@ -150,8 +186,9 @@ stops, rather than producing a recommendation it cannot support.
 | Features, analysis, risk, valuation | complete |
 | Backtesting, learning, calibration | complete |
 | Daily loop, discovery, alerts, reports | complete |
+| Parallel scan + cross-sectional ranking | complete, 3.7x on 4 cores |
 | CLI, read-only API, dashboard | complete |
-| Tests | 300 tests, 83% line coverage, fully offline |
+| Tests | 337 tests, fully offline |
 
 Known gaps are listed in `ARCHITECTURE.md` ("Known limitations") and
 `DATA_SOURCES.md` ("Not wired in"). They are reported by the system as

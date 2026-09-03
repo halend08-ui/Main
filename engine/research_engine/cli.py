@@ -12,6 +12,8 @@ loop scriptable (cron, systemd timer, CI) with no web layer required.
     research-engine report --latest           print the most recent report
     research-engine backtest --name momentum  run a walk-forward backtest
     research-engine evaluate                  grade matured predictions
+    research-engine scan --workers 8         parallel scan + peer ranking
+    research-engine compare NVDA AMD        head-to-head comparison
     research-engine portfolio open --symbol NVDA --quantity 10
     research-engine models                    list model versions
     research-engine serve                     start the read-only API
@@ -89,6 +91,24 @@ def build_parser() -> argparse.ArgumentParser:
     backtest.add_argument("--strategy", default="score",
                           choices=["score", "momentum", "equal_weight"])
     backtest.add_argument("--json", action="store_true")
+
+    scan = sub.add_parser(
+        "scan", help="analyse the universe in parallel and rank it cross-sectionally")
+    scan.add_argument("--as-of", default=None)
+    scan.add_argument("--symbols", nargs="+", default=None)
+    scan.add_argument("--limit", type=int, default=None,
+                      help="cap how many assets are scanned")
+    scan.add_argument("--workers", type=int, default=None,
+                      help="worker processes (default: pipeline.parallel_workers)")
+    scan.add_argument("--per-group", type=int, default=3,
+                      help="leaders taken from each peer group")
+    scan.add_argument("--top", type=int, default=20)
+    scan.add_argument("--json", action="store_true")
+
+    compare = sub.add_parser("compare", help="compare assets head to head")
+    compare.add_argument("symbols", nargs="+")
+    compare.add_argument("--as-of", default=None)
+    compare.add_argument("--json", action="store_true")
 
     portfolio = sub.add_parser(
         "portfolio", help="manage the hypothetical portfolio (no orders are placed)")
@@ -391,6 +411,105 @@ def _strategy(name: str):
             "score": momentum}[name]
 
 
+def cmd_scan(args: argparse.Namespace, settings: Settings) -> int:
+    """Parallel scan of the universe, then cross-sectional ranking."""
+    from research_engine.analysis import comparison as CMP
+    from research_engine.pipeline.parallel import scan as parallel_scan
+
+    services = _services(settings)
+    repos = services["repos"]
+    as_of = to_date(args.as_of) if args.as_of else date.today()
+    symbols = args.symbols or [a.symbol for a in
+                               repos["assets"].list(active_only=True, limit=args.limit)]
+    if not symbols:
+        print("no assets in the universe: run 'universe --refresh' first",
+              file=sys.stderr)
+        return 1
+
+    result = parallel_scan(symbols, as_of, settings=settings,
+                           workers=args.workers, config_path=args.config)
+    comparison = CMP.compare(result.candidates, as_of=as_of,
+                             per_group=args.per_group)
+
+    if args.json:
+        print(json.dumps({"scan": result.to_dict(),
+                          "comparison": comparison.to_dict()},
+                         indent=2, default=str))
+        return 0
+
+    print(f"scanned {result.analysed} assets in {result.seconds:.1f}s "
+          f"across {result.workers} worker(s) "
+          f"({result.analysed / result.seconds:.1f} assets/s)"
+          if result.seconds else f"scanned {result.analysed} assets")
+    if result.failures:
+        print(f"{len(result.failures)} asset(s) could not be analysed; first few: "
+              + ", ".join(f["symbol"] for f in result.failures[:5]))
+    print()
+    print(comparison.render(limit=args.top))
+    print()
+    print("Cross-sectional ranking is relative: being the best of a weak peer "
+          "group is not the same as being a good investment.")
+    return 0
+
+
+def cmd_compare(args: argparse.Namespace, settings: Settings) -> int:
+    """Head-to-head comparison of two or more assets."""
+    from research_engine.analysis import comparison as CMP
+    from research_engine.analysis.pipeline import analyze
+
+    services = _services(settings)
+    data = services["data"]
+    as_of = to_date(args.as_of) if args.as_of else date.today()
+
+    candidates: list[CMP.Candidate] = []
+    for symbol in args.symbols:
+        try:
+            bundle = data.analysis_input(symbol.upper(), as_of)
+        except (DataUnavailable, KeyError) as exc:
+            print(f"{symbol}: {exc}", file=sys.stderr)
+            continue
+        bundle.settings = settings
+        result = analyze(bundle)
+        asset = data.asset(symbol.upper())
+        candidates.append(CMP.candidate_from_result(
+            result, sector=asset.sector, market_cap=asset.market_cap_usd,
+            asset_class=asset.asset_class.value))
+
+    if len(candidates) < 2:
+        print("at least two analysable assets are required", file=sys.stderr)
+        return 1
+
+    groups = CMP.build_peer_groups(candidates)
+    profiles: dict[str, CMP.RelativeProfile] = {}
+    for group in groups:
+        profiles.update(CMP.rank_within(group))
+
+    pairs = [(candidates[i], candidates[j])
+             for i in range(len(candidates)) for j in range(i + 1, len(candidates))]
+    output = [CMP.head_to_head(a, b, profiles=profiles) for a, b in pairs]
+
+    if args.json:
+        print(json.dumps([h.to_dict() for h in output], indent=2, default=str))
+        return 0
+
+    for head in output:
+        print(f"=== {head.a} vs {head.b} ===")
+        print(head.summary)
+        print()
+        print(f"{'factor':<24} {head.a:>10} {head.b:>10} {'delta':>8}  favours")
+        for delta in head.factor_deltas[:12]:
+            if delta.get("delta") is None:
+                print(f"{delta['factor']:<24} {'n/a':>10} {'n/a':>10} "
+                      f"{'—':>8}  not computable for both")
+                continue
+            print(f"{delta['factor']:<24} {delta['a']:>10.1f} {delta['b']:>10.1f} "
+                  f"{delta['delta']:>+8.1f}  {delta['favours']}")
+        for caveat in head.caveats:
+            print(f"  ! {caveat}")
+        print()
+    return 0
+
+
 def cmd_portfolio(args: argparse.Namespace, settings: Settings) -> int:
     """Hypothetical position tracking.
 
@@ -601,7 +720,7 @@ COMMANDS = {
     "init": cmd_init, "providers": cmd_providers, "universe": cmd_universe,
     "ingest": cmd_ingest, "daily": cmd_daily, "analyze": cmd_analyze,
     "report": cmd_report, "backtest": cmd_backtest, "evaluate": cmd_evaluate,
-    "portfolio": cmd_portfolio,
+    "portfolio": cmd_portfolio, "scan": cmd_scan, "compare": cmd_compare,
     "models": cmd_models, "serve": cmd_serve, "doctor": cmd_doctor,
 }
 

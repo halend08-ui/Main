@@ -33,6 +33,7 @@ class DailyReport:
     model_performance: dict[str, Any] = field(default_factory=dict)
     self_evaluation: dict[str, Any] = field(default_factory=dict)
     data_health: dict[str, Any] = field(default_factory=dict)
+    comparison: dict[str, Any] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -41,8 +42,8 @@ class DailyReport:
                 "discoveries": self.discoveries, "portfolio": self.portfolio,
                 "model_performance": self.model_performance,
                 "self_evaluation": self.self_evaluation,
-                "data_health": self.data_health, "warnings": self.warnings,
-                "disclaimer": DISCLAIMER}
+                "data_health": self.data_health, "comparison": self.comparison,
+                "warnings": self.warnings, "disclaimer": DISCLAIMER}
 
     def render(self) -> str:
         lines: list[str] = []
@@ -100,6 +101,28 @@ class DailyReport:
         else:
             add("No asset cleared the minimum evidence and quality bars today. "
                 "That is a legitimate output, not a failure of the run.\n")
+
+        # -- peer-relative ---------------------------------------------------
+        ranking = (self.comparison or {}).get("final_ranking") or []
+        if ranking:
+            add("## Best Of Breed (peer-relative)\n")
+            add("Leaders within each peer group, then compared across groups on "
+                "risk-adjusted expected return. Being the best of a weak peer "
+                "group is not the same as being a good investment.\n")
+            add("| # | Asset | Peer group | Risk-adj | Base return | Rec |")
+            add("|---|-------|------------|----------|-------------|-----|")
+            for i, row in enumerate(ranking[:15], start=1):
+                floored = " *" if row.get("downside_floored") else ""
+                add(f"| {i} | {row.get('symbol')} | {row.get('peer_group')} | "
+                    f"{_num(row.get('risk_adjusted'), 2)}{floored} | "
+                    f"{fmt_pct(row.get('expected_return_base'), 0)} | "
+                    f"{row.get('recommendation')} |")
+            if any(r.get("downside_floored") for r in ranking[:15]):
+                add("\n`*` downside floored: the modelled bear case was milder "
+                    "than the minimum assumed for that risk level.")
+            for note in (self.comparison or {}).get("disagreements", [])[:5]:
+                add(f"\n- disagreement: {note}")
+            add("")
 
         # -- changes --------------------------------------------------------
         add("## Biggest Changes\n")

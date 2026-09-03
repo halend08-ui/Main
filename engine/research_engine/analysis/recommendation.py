@@ -55,6 +55,10 @@ class RecommendationResult:
     bull_case: str = ""
     changes: list[str] = field(default_factory=list)
     gates_failed: list[str] = field(default_factory=list)
+    #: factor name -> 0..100 sub-score (None where not computable). Carried
+    #: explicitly so cross-sectional comparison does not have to reach into the
+    #: ensemble's internals.
+    factor_scores: dict[str, float | None] = field(default_factory=dict)
     model_version: str = "unversioned"
     data_version: str | None = None
     ensemble: EnsembleResult | None = None
@@ -93,6 +97,8 @@ class RecommendationResult:
             "bear_case": self.bear_case, "bull_case": self.bull_case,
             "changes_since_last": self.changes, "gates_failed": self.gates_failed,
             "model_version": self.model_version, "data_version": self.data_version,
+            "factor_scores": {k: (round(v, 1) if v is not None else None)
+                              for k, v in self.factor_scores.items()},
             "ensemble": self.ensemble.to_dict() if self.ensemble else None,
         }
 
