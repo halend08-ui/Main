@@ -255,3 +255,24 @@ def test_portfolio_breaches_are_computed_live_not_from_a_stale_report(api):
     assert payload["breaches"]
     assert any("ACME is 100.0%" in b for b in payload["breaches"])
     assert payload["risk"].get("hhi") is not None
+
+
+def test_universe_refresh_exits_nonzero_when_nothing_was_built(tmp_path,
+                                                               monkeypatch, capsys):
+    """A refresh that admits nothing must fail loudly.
+
+    Returning 0 here let scripts and cron jobs continue past a universe that
+    was never built, and every downstream step then failed confusingly.
+    """
+    monkeypatch.setenv("RE__APP__DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("RE__APP__OFFLINE", "true")
+    main(["init"])
+    assert main(["universe", "--refresh"]) == 1
+    assert "did not complete" in capsys.readouterr().err
+
+
+def test_universe_listing_without_refresh_still_succeeds(tmp_path, monkeypatch):
+    monkeypatch.setenv("RE__APP__DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("RE__APP__OFFLINE", "true")
+    main(["init"])
+    assert main(["universe"]) == 0

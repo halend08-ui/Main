@@ -1,0 +1,133 @@
+# ---------------------------------------------------------------------------
+# Live configuration: real market data, free sources only.
+#
+#   research-engine --config config/live.yaml doctor
+#
+# Layered on top of research_engine/config/default.yaml, so only the settings
+# that differ for live running appear here. Every value is explained; change
+# them deliberately rather than because a number looked low.
+#
+# Secrets are NOT here and must never be added. They are read from environment
+# variables only - see .env.example.
+# ---------------------------------------------------------------------------
+
+app:
+  environment: live
+  log_level: INFO
+  log_json: false
+  data_dir: ./data
+  offline: false            # set true on an air-gapped host to fail fast
+
+ingestion:
+  # SEC asks that automated clients identify themselves with a real contact
+  # address. INGESTION_CONTACT_EMAIL is appended to this at runtime.
+  user_agent: "research-engine/0.1"
+  request_timeout_seconds: 30
+  max_retries: 4
+  backoff_base_seconds: 2.0
+  backoff_max_seconds: 120.0
+
+providers:
+  sec_edgar:
+    enabled: true
+    # SEC publishes a limit of 10 requests/second. 300/min is 5/s: half of
+    # their ceiling, which keeps a large fundamentals pull polite but not
+    # glacial (~17 minutes for 5,000 companies).
+    requests_per_minute: 300
+
+  stooq:
+    enabled: true
+    # Undocumented limits. 30/min has proven stable and is slow enough not to
+    # attract attention; raise it only if you are willing to be blocked.
+    requests_per_minute: 30
+
+  fred:
+    enabled: true
+    # FRED's published limit is 120/min.
+    requests_per_minute: 100
+
+  coingecko:
+    enabled: true
+    # The free tier is roughly 5-15/min and is enforced by 429s. With a demo
+    # key (COINGECKO_API_KEY) you can raise this to about 30.
+    requests_per_minute: 10
+
+  rss:
+    enabled: true
+    feeds:
+      # SEC company filings. This is the highest-tier news source available:
+      # it is the filing itself, not somebody's summary of it. {symbol} is
+      # substituted per asset.
+      - name: "SEC EDGAR filings"
+        url: "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={symbol}&type=8-K&dateb=&owner=include&count=40&output=atom"
+        tier: regulatory_filing
+
+      # ---------------------------------------------------------------
+      # Add your own journalism feeds below. Two rules:
+      #
+      #   1. Set `tier` honestly. It directly weights the evidence and drives
+      #      conflict resolution, so labelling a blog as `company_filing`
+      #      corrupts the fact-checking layer.
+      #   2. Verify the URL returns RSS or Atom before relying on it. A feed
+      #      that 404s is logged and skipped, not silently treated as
+      #      "no news" - but you will get less coverage than you think.
+      #
+      # Tiers, strongest to weakest: regulatory_filing, company_filing,
+      # company_documentation, earnings_material, data_provider,
+      # financial_journalism, secondary_research, social_media.
+      #
+      # - name: "Example newswire"
+      #   url: "https://example.com/rss/markets"
+      #   tier: financial_journalism
+      #   general: true          # not symbol-specific; filtered by mention
+      # ---------------------------------------------------------------
+
+universe:
+  asset_classes: [equity]     # add `crypto` once you have CoinGecko working
+  countries: [US]             # SEC EDGAR covers US registrants
+  # Floors exist to keep the scan affordable and to avoid names whose data is
+  # too thin to analyse. Lower them only if you accept worse data quality.
+  min_market_cap_usd: 300000000
+  min_dollar_volume_usd: 1000000
+  min_price_usd: 3.0
+  max_assets: 5000
+  include_delisted_in_history: true
+
+quality:
+  # A US equity should print every session. More than three missing days means
+  # something is wrong with the feed, not with the market.
+  max_price_staleness_days: 4
+  min_history_days_for_analysis: 250
+  min_history_days_for_valuation: 750
+
+scoring:
+  # Live money deserves a higher bar than a demo. These are stricter than the
+  # defaults: raise them further if you want fewer, better-supported names.
+  min_quality_for_buy: good
+  thresholds:
+    watch: 48
+    moderate: 62
+    strong: 74
+    exceptional: 85
+
+analysis:
+  benchmark_equity: SPY       # ingest SPY too, or regime detection degrades
+  min_confidence_to_recommend: 0.40
+
+pipeline:
+  # Match your core count. Processes, not threads: see ARCHITECTURE.md.
+  parallel_workers: 4
+  stage2_max_assets: 600
+  stage3_max_assets: 120
+  stage4_max_assets: 25
+  leaders_per_peer_group: 2
+
+alerts:
+  enabled: true
+  channels: [file]
+  file_path: alerts.jsonl
+
+api:
+  host: 127.0.0.1             # do not expose this to a network you do not control
+  port: 8000
+  cors_origins: ["http://localhost:5173"]

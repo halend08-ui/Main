@@ -1,0 +1,17 @@
+# One ticker per line. Lines starting with # are ignored.
+#
+# Put companies you already follow or want to examine here. This file is
+# deliberately not pre-filled with suggestions: which companies are worth your
+# attention is your judgement, and the engine's job is to examine them, not to
+# hand you a starting portfolio.
+#
+# Notes on coverage:
+#   * US-listed common stock works best: SEC EDGAR carries the fundamentals.
+#   * ETFs and funds have no financial statements, so they will analyse on
+#     price and risk only and will not receive a valuation.
+#   * Foreign issuers filing 20-F or 40-F are covered; most others are not.
+#   * Start with 10-30 names. Ingesting thousands takes hours at free-tier
+#     rate limits, and the first thing you want is to read one report closely.
+#
+# AAPL
+# MSFT

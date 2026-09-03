@@ -336,3 +336,30 @@ All notable changes to this project. Phases refer to the staged build plan in
   experiment. It is now live and defaults to 4. `ARCHITECTURE.md` carries both
   measurements, since the earlier conclusion was correct about threads and
   wrong as a general statement about parallelism.
+
+### Live configuration
+
+**Added**
+
+- `engine/config/live.yaml`: production configuration for the free data sources,
+  with the reasoning recorded next to every rate limit (SEC 300/min is half
+  their published 10/s ceiling; Stooq 30/min because their limits are
+  undocumented), stricter score thresholds than the demo defaults, and the SEC
+  company-filings Atom feed wired in at `regulatory_filing` tier. Slots for the
+  operator's own journalism feeds are left commented with the two rules that
+  matter: set the tier honestly, and verify the URL returns a feed.
+- `engine/.env.example`: the three environment variables, what each unlocks, and
+  what degrades without it.
+- `engine/scripts/first_run.sh`: guided first run that validates the environment
+  before touching the network, adds SPY unconditionally (without a benchmark,
+  regime detection and relative strength both degrade), paces the ingest against
+  the real rate limits, and closes by explaining how to read the report -
+  including that `INSUFFICIENT_DATA` is a refusal, not a failure.
+- `engine/scripts/watchlist.example.txt`: deliberately empty of suggestions,
+  with notes on what the free sources actually cover.
+
+**Fixed**
+
+- `universe --refresh` exited 0 even when it admitted no assets, so scripts and
+  cron jobs continued past a universe that was never built and every downstream
+  step then failed confusingly. It now returns 1 and says what to do.

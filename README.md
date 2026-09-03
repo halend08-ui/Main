@@ -127,17 +127,46 @@ data quality).
 
 ## Running against real data
 
+A live configuration and a guided first run are included.
+
 ```bash
-export INGESTION_CONTACT_EMAIL="you@example.com"   # SEC requires a contact UA
-export FRED_API_KEY="…"                            # free, for macro series
-research-engine doctor            # is the system fit to produce output?
-research-engine universe --refresh
-research-engine daily
+cd engine
+cp .env.example .env          # fill in your contact address and FRED key
+set -a && . ./.env && set +a
+
+cp scripts/watchlist.example.txt watchlist.txt
+$EDITOR watchlist.txt         # 10-30 tickers you actually want examined
+
+./scripts/first_run.sh watchlist.txt
 ```
+
+The script checks the environment *before* touching the network, so a missing
+key fails in two seconds with an explanation rather than after twenty minutes of
+retries. It then builds the universe, ingests your watchlist plus SPY, pulls
+macro, runs a health check and produces the first report.
+
+Two keys, both free:
+
+| Variable | Needed for | Where |
+| --- | --- | --- |
+| `INGESTION_CONTACT_EMAIL` | SEC fundamentals — their policy requires a contact address | any working address of yours |
+| `FRED_API_KEY` | macro readings and sector tilts | <https://fredaccount.stlouisfed.org/apikeys> |
+
+Without the FRED key everything else still works; macro simply reports
+"unknown" rather than being estimated.
+
+`config/live.yaml` carries the live settings: real rate limits with the
+reasoning behind each number, stricter score thresholds than the demo defaults,
+and the SEC filings RSS feed. Add your own news feeds there — set each feed's
+`tier` honestly, because it directly weights the evidence.
 
 `research-engine providers` shows which sources are live, which need a key, and
 what each one can and cannot supply. See `DATA_SOURCES.md` for the coverage
 gaps — the engine reports them as unavailable rather than estimating around them.
+
+**Start small.** At free-tier rate limits (Stooq 30/min) a few thousand names is
+a multi-hour pull. Ingest 10–30 first and read one report closely; widening the
+universe is one command once you trust what it says.
 
 ## What the output looks like
 

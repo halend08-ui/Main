@@ -239,21 +239,34 @@ def cmd_providers(args: argparse.Namespace, settings: Settings) -> int:
 def cmd_universe(args: argparse.Namespace, settings: Settings) -> int:
     services = _services(settings)
     repos = services["repos"]
+    refresh_failed = False
     if args.refresh:
         from research_engine.ingestion.universe import UniverseBuilder
         builder = UniverseBuilder(settings, services["ingestor"].registry,
                                   repos["assets"])
-        for asset_class in (settings.get("universe.asset_classes") or ["equity"]):
+        requested = settings.get("universe.asset_classes") or ["equity"]
+        for asset_class in requested:
             stats = (builder.build_crypto() if asset_class == "crypto"
                      else builder.build_equities())
             print(f"{asset_class}: {json.dumps(stats.as_dict())}")
+            # A refresh that admitted nothing is a failure, whatever the logs
+            # said. Returning 0 here let scripts and cron jobs sail past a
+            # universe that was never built.
+            if stats.errors or stats.admitted == 0:
+                refresh_failed = True
     assets = repos["assets"].list(asset_class=args.asset_class, limit=args.limit)
     print(f"{'symbol':<10} {'class':<8} {'sector':<24} {'market cap':>16}")
     for asset in assets:
         cap = f"{asset.market_cap_usd:,.0f}" if asset.market_cap_usd else "n/a"
         print(f"{asset.symbol:<10} {asset.asset_class.value:<8} "
               f"{(asset.sector or '-'):<24} {cap:>16}")
-    print(f"\ntotal assets: {repos['assets'].count()}")
+    total = repos["assets"].count()
+    print(f"\ntotal assets: {total}")
+    if refresh_failed:
+        print("\nuniverse refresh did not complete: see the errors above. "
+              "Nothing downstream will work until the universe exists.",
+              file=sys.stderr)
+        return 1
     return 0
 
 
