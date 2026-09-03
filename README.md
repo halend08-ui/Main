@@ -217,7 +217,7 @@ stops, rather than producing a recommendation it cannot support.
 | Daily loop, discovery, alerts, reports | complete |
 | Parallel scan + cross-sectional ranking | complete, 3.7x on 4 cores |
 | CLI, read-only API, dashboard | complete |
-| Tests | 337 tests, fully offline |
+| Tests | 339 tests, fully offline |
 
 Known gaps are listed in `ARCHITECTURE.md` ("Known limitations") and
 `DATA_SOURCES.md` ("Not wired in"). They are reported by the system as
