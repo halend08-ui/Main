@@ -191,3 +191,35 @@ All notable changes to this project. Phases refer to the staged build plan in
   (labelled association, not causation), weight proposals capped per update and
   refused without enough evidence, and promotion that requires out-of-sample
   samples, a margin, and no calibration regression.
+
+### Phase 7 - Daily research loop, discovery, alerts and reporting
+
+**Added**
+
+- `pipeline.prioritization`: research priority from opportunity, magnitude of
+  change, anomalies, holding status, staleness, novelty and imminent catalysts,
+  with priority halved when data quality is poor; and a four-stage compute
+  funnel that records why each asset was dropped.
+- `pipeline.discovery`: recent listings (with explicit short-history warnings),
+  unusual activity, accelerating fundamentals, insider clusters, crypto volume
+  traction (warned as frequently wash trading) and sector laggards (flagged as
+  "as often a warning as an opportunity"). Multiple independent triggers on one
+  asset raise its interest; discoveries are labelled research candidates and
+  never recommendations.
+- `pipeline.alerts`: eleven threshold-driven rules with per-day deduplication,
+  a file sink and database persistence. A drawdown alert says "re-review the
+  thesis", not "sell".
+- `analysis.memo`: full investment memo with the bear case placed before the
+  bull case, epistemic status on forward-looking statements, and honest "no data
+  for this section" fallbacks instead of generated filler.
+- `pipeline.report`: daily report covering market overview, top opportunities,
+  biggest changes, discoveries, portfolio, model performance and a daily
+  self-evaluation. An empty report states that no asset cleared the bar and
+  calls that a legitimate outcome.
+- `pipeline.daily`: the 15-step loop (ingest, universe, market context,
+  discovery, prioritise, analyse, detect changes, portfolio, alerts, store
+  predictions, evaluate matured predictions, performance, learning, memos,
+  report). Each step is timed and isolated: one failing step is recorded and
+  skipped rather than aborting the run.
+- `pipeline.data_access`: the single adapter through which the loop reads data,
+  so point-in-time filtering cannot be bypassed by a new step.
