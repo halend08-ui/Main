@@ -49,17 +49,32 @@ def redact(text: str) -> str:
     return text
 
 
+def _redact_arg(value: Any) -> Any:
+    """Redact a log argument *without changing its type*.
+
+    Stringifying every argument would corrupt other libraries' records: a
+    logger calling ``log.info("%s %d", method, status)`` breaks if the integer
+    becomes a string. Only strings can contain secrets, so only strings are
+    touched, and only when redaction actually changes them.
+    """
+    if not isinstance(value, str):
+        return value
+    cleaned = redact(value)
+    return cleaned if cleaned != value else value
+
+
 class SecretRedactingFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         try:
-            record.msg = redact(str(record.msg))
+            if isinstance(record.msg, str):
+                record.msg = redact(record.msg)
             if record.args:
                 if isinstance(record.args, dict):
-                    record.args = {k: redact(str(v)) for k, v in record.args.items()}
+                    record.args = {k: _redact_arg(v) for k, v in record.args.items()}
                 else:
-                    record.args = tuple(redact(str(a)) for a in record.args)
+                    record.args = tuple(_redact_arg(a) for a in record.args)
             for key, value in list(getattr(record, "context", {}).items()):
-                record.context[key] = redact(str(value))  # type: ignore[attr-defined]
+                record.context[key] = _redact_arg(value)  # type: ignore[attr-defined]
         except Exception:  # logging must never break the pipeline
             pass
         return True

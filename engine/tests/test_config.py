@@ -52,3 +52,13 @@ def test_secrets_only_come_from_environment(tmp_path):
     from research_engine.config import settings as settings_module
     raw = settings_module._DEFAULT_FILE.read_text()
     assert "api_key:" not in raw
+
+
+def test_default_embargo_covers_the_default_label_horizon():
+    """A default run must not be the thing the leakage check warns about."""
+    from research_engine.quality.bias import check_label_horizon_embargo
+
+    s = default_settings()
+    horizon = int(s.get("backtest.label_horizon_days"))
+    embargo = int(s.get("backtest.embargo_days"))
+    assert check_label_horizon_embargo(horizon, embargo) is None

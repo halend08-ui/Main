@@ -270,3 +270,28 @@ All notable changes to this project. Phases refer to the staged build plan in
   It was not shipped; `pipeline.parallel_workers` is documented as unused with
   the measurement, rather than left as a knob that does not work.
 - 302 tests, 83% line coverage, no network access required.
+
+### Post-release fixes (found by running the offline demo end to end)
+
+- **Logging filter corrupted third-party log records.** `SecretRedactingFilter`
+  stringified every log argument, so any library logging with positional
+  formatting (`"%s %d"`, as httpx does) raised `TypeError: %d format: a real
+  number is required, not str`. Only strings can carry secrets, so only strings
+  are now touched, and only when redaction actually changes them.
+- **The API rounding fix claimed in the Phase 8 commit was never applied** — the
+  patch ran in a shell command that was killed before executing, so the
+  screener and opportunities endpoints were still emitting 13-decimal fair
+  values. Applied for real, with a test covering both endpoints.
+- **`/api/portfolio` read limit breaches from the last stored daily report.** A
+  position opened between runs showed "no breaches" for a portfolio that was
+  100% in one name. Risk and breaches are now computed live from current
+  positions.
+- **The shipped default `backtest.embargo_days` (5) was shorter than the
+  default label horizon (21)**, so a default backtest triggered the engine's own
+  leakage warning. The default embargo now covers the label horizon, the label
+  horizon is configurable, and a test asserts the defaults are self-consistent.
+- **The bear case described an increase as a decline.** When bear-case fair
+  value sits above the current price, the text said "a 38% decline from $60.01"
+  about a number 38% higher. It now says the downside scenario is not pricing
+  in a loss, and that the risk is the bear assumptions being insufficiently
+  pessimistic.

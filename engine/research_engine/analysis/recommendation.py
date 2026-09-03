@@ -323,10 +323,21 @@ def build_bear_case(*, evidence: Sequence[Evidence], risk: RiskProfile,
     if fragile_assumption:
         parts.append(f"The most fragile assumption is {fragile_assumption}.")
     if bear_value is not None and price:
-        downside = bear_value / price - 1.0
-        parts.append(f"If the bear case is right, fair value is around "
-                     f"{_money(bear_value)}, a {abs(downside):.0%} decline from "
-                     f"{_money(price)}.")
+        move = bear_value / price - 1.0
+        if move < -0.01:
+            parts.append(f"If the bear case is right, fair value is around "
+                         f"{_money(bear_value)}, a {abs(move):.0%} decline from "
+                         f"{_money(price)}.")
+        else:
+            # A bear case above the current price is not reassuring on its own:
+            # it usually means the model's downside assumptions are too mild, and
+            # saying "a 38% decline" about a higher number would be simply wrong.
+            parts.append(
+                f"Even the bear case values this at {_money(bear_value)}, "
+                f"{move:+.0%} versus {_money(price)} -- the downside scenario is "
+                f"not pricing in a loss, which means the real risk here is that "
+                f"the bear assumptions are not pessimistic enough rather than "
+                f"that the downside is small.")
     if risk.max_drawdown is not None:
         parts.append(f"This asset has previously fallen "
                      f"{abs(risk.max_drawdown):.0%} from a peak, so a decline of "

@@ -143,3 +143,29 @@ def test_secrets_never_reach_the_log():
 def test_redaction_catches_key_patterns():
     assert "abcdef123456" not in redact("Authorization: abcdef123456")
     assert "sk-livekey99" not in redact("?api_key=sk-livekey99&x=1")
+
+
+def test_redaction_preserves_argument_types():
+    """The filter must not stringify args: `%d` formatting would break.
+
+    Third-party libraries log with positional formatting (`"%s %d"`), and a
+    filter that turns every argument into a string corrupts their records.
+    """
+    from research_engine.core.logging import SecretRedactingFilter
+
+    record = logging.LogRecord("httpx", logging.INFO, __file__, 1,
+                               'HTTP Request: %s %s "%s %d %s"',
+                               ("GET", "http://x", "HTTP/1.1", 200, "OK"), None)
+    assert SecretRedactingFilter().filter(record)
+    assert record.args[3] == 200 and isinstance(record.args[3], int)
+    assert record.getMessage() == 'HTTP Request: GET http://x "HTTP/1.1 200 OK"'
+
+
+def test_redaction_still_scrubs_string_arguments():
+    from research_engine.core.logging import SecretRedactingFilter, register_secret
+
+    register_secret("LEAKY-SECRET-VALUE")
+    record = logging.LogRecord("x", logging.INFO, __file__, 1, "key=%s",
+                               ("LEAKY-SECRET-VALUE",), None)
+    SecretRedactingFilter().filter(record)
+    assert "LEAKY-SECRET-VALUE" not in record.getMessage()

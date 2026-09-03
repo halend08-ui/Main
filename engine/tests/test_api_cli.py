@@ -220,3 +220,38 @@ def test_cli_portfolio_warns_when_no_thesis_is_recorded(tmp_path, monkeypatch,
     main(["portfolio", "open", "--symbol", "BETA", "--quantity", "5",
           "--price", "10"])
     assert "cannot be monitored for thesis deterioration" in capsys.readouterr().out
+
+
+def test_api_does_not_emit_false_precision(api):
+    """A fair value quoted to 13 decimals implies precision the model lacks."""
+    client, _, _ = api
+    items = client.get("/api/opportunities?limit=5").json()["items"]
+    items += client.get("/api/screen?min_score=0").json()["items"]
+    assert items
+    for item in items:
+        for value in item["fair_value"].values():
+            if value is not None:
+                assert len(str(value).split(".")[-1]) <= 2, value
+        for value in item["expected_return"].values():
+            if value is not None:
+                assert len(str(value).split(".")[-1]) <= 3, value
+        if item["confidence"] is not None:
+            assert len(str(item["confidence"]).split(".")[-1]) <= 3
+
+
+def test_portfolio_breaches_are_computed_live_not_from_a_stale_report(api):
+    """Positions opened between daily runs must still be risk-checked."""
+    client, repos, as_of = api
+    portfolio_id = repos["portfolio"].ensure("research")
+    asset = repos["assets"].get("ACME")
+    repos["portfolio"].open_position(portfolio_id, asset.id, opened_at=as_of,
+                                     entry_price=100.0, quantity=1000.0,
+                                     thesis="deliberately oversized")
+
+    payload = client.get("/api/portfolio").json()
+    assert len(payload["positions"]) == 1
+    # the daily run happened before this position existed; the API must not
+    # report "no breaches" from that stale report
+    assert payload["breaches"]
+    assert any("ACME is 100.0%" in b for b in payload["breaches"])
+    assert payload["risk"].get("hhi") is not None

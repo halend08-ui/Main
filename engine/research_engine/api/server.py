@@ -233,13 +233,46 @@ def build_app(settings: Any, services: Mapping[str, Any] | None = None):
     # -- portfolio / performance -------------------------------------------
     @app.get("/api/portfolio")
     def portfolio() -> dict[str, Any]:
+        """Portfolio risk computed live, not read from the last daily report.
+
+        Positions can be opened between runs, and a stale report showing "no
+        limit breaches" for a portfolio that now has three is worse than showing
+        nothing at all.
+        """
+        from research_engine.analysis import risk as RK
+        from research_engine.core.errors import DataUnavailable as _Unavailable
+
         as_of = _latest_as_of() or date.today()
         positions = data.open_positions(as_of)
-        report = repos["reports"].latest("daily")
-        payload = (report or {}).get("payload") or {}
-        return {"as_of": as_of.isoformat(), "positions": positions,
-                "risk": (payload.get("portfolio") or {}).get("risk", {}),
-                "breaches": (payload.get("portfolio") or {}).get("breaches", []),
+        if not positions:
+            return {"as_of": as_of.isoformat(), "positions": [], "risk": {},
+                    "breaches": [],
+                    "note": "hypothetical portfolio: this system never places orders"}
+
+        weights: dict[str, float] = {}
+        series_by_symbol: dict[str, Any] = {}
+        for position in positions:
+            price = position.get("price") or position.get("entry_price") or 0.0
+            weights[position["symbol"]] = price * float(position.get("quantity", 0))
+            try:
+                series_by_symbol[position["symbol"]] = data.series(
+                    position["symbol"], as_of=as_of)
+            except (_Unavailable, KeyError):
+                continue
+
+        risk = RK.portfolio_risk(weights, series_by_symbol)
+        breaches = RK.limit_breaches(
+            weights,
+            sectors={p["symbol"]: p.get("sector", "Unknown") for p in positions},
+            asset_classes={p["symbol"]: p.get("asset_class", "equity")
+                           for p in positions},
+            max_position=float(settings.get("risk.max_position_weight", 0.12)),
+            max_sector=float(settings.get("risk.max_sector_weight", 0.30)),
+            max_crypto=float(settings.get("risk.max_crypto_weight", 0.20)),
+            concentration_warning_hhi=float(
+                settings.get("risk.concentration_warning_hhi", 0.18)))
+        return {"as_of": as_of.isoformat(), "positions": positions, "risk": risk,
+                "breaches": breaches,
                 "note": "hypothetical portfolio: this system never places orders"}
 
     @app.get("/api/performance")
@@ -279,21 +312,38 @@ def build_app(settings: Any, services: Mapping[str, Any] | None = None):
     return app
 
 
+def _round(value: Any, digits: int) -> Any:
+    """Round for presentation.
+
+    A fair value quoted to thirteen decimal places implies precision the model
+    does not have; false precision is a documented failure mode, so the API
+    rounds at the boundary rather than shipping raw floats to the client.
+    """
+    if value is None:
+        return None
+    try:
+        return round(float(value), digits)
+    except (TypeError, ValueError):
+        return value
+
+
 def _recommendation_summary(row: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "symbol": row.get("symbol"), "name": row.get("name"),
         "asset_class": row.get("asset_class"), "sector": row.get("sector"),
-        "recommendation": row.get("recommendation"), "score": row.get("score"),
-        "confidence": row.get("confidence"), "price": row.get("price"),
+        "recommendation": row.get("recommendation"),
+        "score": _round(row.get("score"), 1),
+        "confidence": _round(row.get("confidence"), 3),
+        "price": _round(row.get("price"), 4),
         "risk_level": row.get("risk_level"), "data_quality": row.get("data_quality"),
         "horizon": row.get("horizon"),
-        "fair_value": {"bear": row.get("fair_value_bear"),
-                       "base": row.get("fair_value_base"),
-                       "bull": row.get("fair_value_bull")},
-        "expected_return": {"bear": row.get("expected_return_bear"),
-                            "base": row.get("expected_return_base"),
-                            "bull": row.get("expected_return_bull")},
-        "probability_positive": row.get("prob_positive"),
+        "fair_value": {"bear": _round(row.get("fair_value_bear"), 2),
+                       "base": _round(row.get("fair_value_base"), 2),
+                       "bull": _round(row.get("fair_value_bull"), 2)},
+        "expected_return": {"bear": _round(row.get("expected_return_bear"), 3),
+                            "base": _round(row.get("expected_return_base"), 3),
+                            "bull": _round(row.get("expected_return_bull"), 3)},
+        "probability_positive": _round(row.get("prob_positive"), 3),
         "model_version": row.get("model_version"), "as_of": row.get("as_of"),
     }
 

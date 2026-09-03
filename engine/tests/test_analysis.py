@@ -498,3 +498,25 @@ def test_rendered_output_contains_bear_and_bull_cases(price_bars, settings):
     rendered = result.render()
     assert "Bear Case:" in rendered and "Bull Case:" in rendered
     assert result.risks         # never empty
+
+
+def test_bear_case_never_calls_an_increase_a_decline():
+    """A bear value above the current price is not a 'decline'."""
+    from research_engine.analysis.risk import RiskProfile
+
+    profile = RiskProfile(symbol="X", as_of=dt.date(2026, 1, 5),
+                          level=RiskLevel.MODERATE, volatility=0.2,
+                          max_drawdown=-0.3, var_95=None, expected_shortfall=None,
+                          permanent_loss_score=0.2, liquidity_score=0.2,
+                          gap_risk=None)
+    above = REC.build_bear_case(evidence=[], risk=profile, bear_value=120.0,
+                                price=100.0, ensemble=None)
+    # the fair-value sentence must not describe a higher number as a decline
+    # (the separate sentence about historical drawdown legitimately says "decline")
+    assert "38% decline" not in above
+    assert "+20% versus" in above
+    assert "not pessimistic enough" in above
+
+    below = REC.build_bear_case(evidence=[], risk=profile, bear_value=70.0,
+                                price=100.0, ensemble=None)
+    assert "30% decline" in below

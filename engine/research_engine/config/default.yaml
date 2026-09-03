@@ -222,7 +222,13 @@ backtest:
   train_window_days: 1260
   test_window_days: 252
   step_days: 252
-  embargo_days: 5                   # gap between train and test to stop leakage
+  # Gap between train and test. MUST be >= the label horizon: a label observed
+  # at time T is computed from returns after T, so a shorter embargo lets the
+  # last training labels peek into the test period. The engine warns when this
+  # is violated; the default is set so a default run is not the thing being
+  # warned about.
+  label_horizon_days: 21
+  embargo_days: 21
   benchmarks: [SPY, BTC, CASH]
   max_complexity_penalty: 0.15
 
