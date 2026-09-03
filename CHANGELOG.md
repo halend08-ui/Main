@@ -223,3 +223,50 @@ All notable changes to this project. Phases refer to the staged build plan in
   skipped rather than aborting the run.
 - `pipeline.data_access`: the single adapter through which the loop reads data,
   so point-in-time filtering cannot be bypassed by a new step.
+
+### Phase 9 - Audit, hardening and documentation
+
+**Added**
+
+- `tests/test_no_fabrication.py`: the system-wide invariants asserted directly,
+  including source-tree checks that no module defaults an unknown price or
+  return to zero, that the engine contains no random data generation, that
+  analysis and feature modules never read the wall clock, that no
+  order-execution call or broker SDK import exists anywhere, that no credential
+  literals appear in source or config, and that every public output carries its
+  uncertainty disclaimer.
+- `tests/test_agent_service.py`: coverage for the research agent and the
+  ingestion service, the two layers that sit at the system's boundaries.
+- `research-engine portfolio` commands (`show`, `open`, `close`, `cash`) so
+  hypothetical positions can actually be recorded, monitored for thesis
+  deterioration, and risk-checked. Opening a position without a stored price
+  refuses rather than guessing one, and a position opened with no written
+  thesis warns that it cannot be monitored for thesis deterioration.
+- Full documentation set: `ARCHITECTURE.md`, `CONFIGURATION.md`,
+  `DATA_SOURCES.md`, `DEVELOPMENT.md`, `BACKTESTING.md`, `MODELING.md`,
+  `RISK_MANAGEMENT.md`, each stating the system's limitations as plainly as its
+  capabilities.
+
+**Fixed (found by the audit)**
+
+- `analysis/agent.py`, `analysis/events.py` and `analysis/sentiment.py` read the
+  wall clock, so replaying a historical date would have produced today's answer.
+  They now resolve through the pinned as-of clock.
+- The reverse DCF compared implied growth only against a five-year CAGR, which
+  is frequently not yet filed at an early-in-year as-of date; the comparison was
+  silently dropped. It now uses the longest window actually available and states
+  which, or says explicitly that there is nothing to compare against.
+- The screener issued one asset lookup per row (an N+1 query on every keystroke);
+  replaced with a single bulk lookup.
+- The API emitted raw floats, producing 13-decimal fair values — precisely the
+  false precision the design forbids. Values are now rounded at the boundary.
+
+**Measured**
+
+- 500 assets analysed end to end in 44 s (88 ms/asset); 300k price rows and 25k
+  fundamental facts loaded in 8.6 s; 71 MB database.
+- Thread-parallel analysis was implemented and measured at **2.4x slower** than
+  sequential (GIL plus SQLite lock contention: 9.5 s → 23.0 s for 120 assets).
+  It was not shipped; `pipeline.parallel_workers` is documented as unused with
+  the measurement, rather than left as a knob that does not work.
+- 302 tests, 83% line coverage, no network access required.

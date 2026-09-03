@@ -180,3 +180,43 @@ def test_cli_offline_run_is_honest_about_missing_data(tmp_path, monkeypatch, cap
     output = capsys.readouterr().out
     assert code == 1
     assert "not in the asset universe" in output
+
+
+def test_cli_portfolio_requires_a_price_it_does_not_guess(tmp_path, monkeypatch,
+                                                          capsys):
+    monkeypatch.setenv("RE__APP__DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("RE__APP__OFFLINE", "true")
+    main(["init"])
+    from research_engine.config.settings import load_settings
+    from research_engine.storage.db import connect
+    from research_engine.storage.repositories import AssetRepository
+
+    settings = load_settings(environ={"RE__APP__DATA_DIR": str(tmp_path)})
+    AssetRepository(connect(settings)).upsert(symbol="ACME", asset_class="equity")
+
+    # no stored price and none supplied: refuse rather than invent one
+    assert main(["portfolio", "open", "--symbol", "ACME", "--quantity", "10"]) == 1
+    assert "rather than letting the system guess" in capsys.readouterr().err
+
+    assert main(["portfolio", "open", "--symbol", "ACME", "--quantity", "10",
+                 "--price", "42.50", "--thesis", "test thesis"]) == 0
+    assert main(["portfolio", "show"]) == 0
+    output = capsys.readouterr().out
+    assert "ACME" in output and "test thesis" in output
+    assert "places no orders" in output
+
+
+def test_cli_portfolio_warns_when_no_thesis_is_recorded(tmp_path, monkeypatch,
+                                                        capsys):
+    monkeypatch.setenv("RE__APP__DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("RE__APP__OFFLINE", "true")
+    main(["init"])
+    from research_engine.config.settings import load_settings
+    from research_engine.storage.db import connect
+    from research_engine.storage.repositories import AssetRepository
+
+    settings = load_settings(environ={"RE__APP__DATA_DIR": str(tmp_path)})
+    AssetRepository(connect(settings)).upsert(symbol="BETA", asset_class="equity")
+    main(["portfolio", "open", "--symbol", "BETA", "--quantity", "5",
+          "--price", "10"])
+    assert "cannot be monitored for thesis deterioration" in capsys.readouterr().out

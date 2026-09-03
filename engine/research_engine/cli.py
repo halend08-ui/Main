@@ -12,6 +12,7 @@ loop scriptable (cron, systemd timer, CI) with no web layer required.
     research-engine report --latest           print the most recent report
     research-engine backtest --name momentum  run a walk-forward backtest
     research-engine evaluate                  grade matured predictions
+    research-engine portfolio open --symbol NVDA --quantity 10
     research-engine models                    list model versions
     research-engine serve                     start the read-only API
 """
@@ -88,6 +89,23 @@ def build_parser() -> argparse.ArgumentParser:
     backtest.add_argument("--strategy", default="score",
                           choices=["score", "momentum", "equal_weight"])
     backtest.add_argument("--json", action="store_true")
+
+    portfolio = sub.add_parser(
+        "portfolio", help="manage the hypothetical portfolio (no orders are placed)")
+    portfolio.add_argument("action", choices=["show", "open", "close", "cash"])
+    portfolio.add_argument("--name", default="research")
+    portfolio.add_argument("--symbol")
+    portfolio.add_argument("--quantity", type=float)
+    portfolio.add_argument("--price", type=float,
+                           help="entry/exit price; defaults to the last stored close")
+    portfolio.add_argument("--date", default=None)
+    portfolio.add_argument("--thesis")
+    portfolio.add_argument("--target", type=float)
+    portfolio.add_argument("--stop", type=float)
+    portfolio.add_argument("--horizon", default=None)
+    portfolio.add_argument("--reason", default="manual close")
+    portfolio.add_argument("--amount", type=float, help="cash amount for `cash`")
+    portfolio.add_argument("--json", action="store_true")
 
     sub.add_parser("evaluate", help="grade predictions whose horizon has elapsed")
 
@@ -362,6 +380,123 @@ def _strategy(name: str):
             "score": momentum}[name]
 
 
+def cmd_portfolio(args: argparse.Namespace, settings: Settings) -> int:
+    """Hypothetical position tracking.
+
+    This records what the operator *decided*, so the engine can monitor theses
+    and measure portfolio risk. It places no orders and talks to no broker.
+    """
+    from research_engine.analysis import risk as RK
+
+    services = _services(settings)
+    repos = services["repos"]
+    data = services["data"]
+    portfolio_repo = repos["portfolio"]
+    portfolio_id = portfolio_repo.ensure(
+        args.name, cash=float(settings.get("portfolio.starting_cash_usd", 0)))
+    as_of = to_date(args.date) if args.date else date.today()
+
+    def last_price(symbol: str) -> float | None:
+        try:
+            return data.series(symbol, as_of=as_of).last_close
+        except (DataUnavailable, KeyError):
+            return None
+
+    if args.action == "open":
+        if not args.symbol or not args.quantity:
+            print("--symbol and --quantity are required", file=sys.stderr)
+            return 2
+        asset = repos["assets"].get(args.symbol.upper())
+        if asset is None:
+            print(f"unknown asset {args.symbol}: add it to the universe first",
+                  file=sys.stderr)
+            return 1
+        price = args.price if args.price is not None else last_price(asset.symbol)
+        if price is None:
+            print(f"no stored price for {asset.symbol}; pass --price explicitly "
+                  f"rather than letting the system guess one", file=sys.stderr)
+            return 1
+        position_id = portfolio_repo.open_position(
+            portfolio_id, asset.id, opened_at=as_of, entry_price=float(price),
+            quantity=float(args.quantity), thesis=args.thesis,
+            target_price=args.target, stop_price=args.stop, horizon=args.horizon)
+        print(f"opened position {position_id}: {args.quantity} {asset.symbol} "
+              f"at {price:,.4f} on {as_of}")
+        if not args.thesis:
+            print("note: no thesis recorded. A position without a written thesis "
+                  "cannot be monitored for thesis deterioration.")
+        return 0
+
+    if args.action == "close":
+        positions = portfolio_repo.positions(portfolio_id, open_only=True)
+        match = [p for p in positions
+                 if p["symbol"].upper() == (args.symbol or "").upper()]
+        if not match:
+            print(f"no open position in {args.symbol}", file=sys.stderr)
+            return 1
+        price = args.price if args.price is not None else last_price(match[0]["symbol"])
+        if price is None:
+            print("no stored price; pass --price explicitly", file=sys.stderr)
+            return 1
+        portfolio_repo.close_position(match[0]["id"], closed_at=as_of,
+                                      exit_price=float(price), reason=args.reason)
+        entry = float(match[0]["entry_price"])
+        print(f"closed {match[0]['symbol']} at {price:,.4f} "
+              f"({price / entry - 1:+.1%} versus entry): {args.reason}")
+        return 0
+
+    if args.action == "cash":
+        if args.amount is None:
+            print(f"cash: {portfolio_repo.cash(portfolio_id):,.2f}")
+            return 0
+        portfolio_repo.set_cash(portfolio_id, float(args.amount))
+        print(f"cash set to {args.amount:,.2f}")
+        return 0
+
+    positions = data.open_positions(as_of)
+    if args.json:
+        print(json.dumps(positions, indent=2, default=str))
+        return 0
+    if not positions:
+        print("no open positions")
+        return 0
+
+    weights: dict[str, float] = {}
+    series_by_symbol: dict[str, Any] = {}
+    print(f"{'symbol':<10} {'entry':>12} {'price':>12} {'return':>9} "
+          f"{'quantity':>12} thesis")
+    for position in positions:
+        price = position.get("price")
+        entry = float(position["entry_price"])
+        change = f"{price / entry - 1:+.1%}" if price else "n/a"
+        print(f"{position['symbol']:<10} {entry:>12,.4f} "
+              f"{(price if price else float('nan')):>12,.4f} {change:>9} "
+              f"{position['quantity']:>12,.2f} {position.get('thesis') or '—'}")
+        weights[position["symbol"]] = (price or entry) * position["quantity"]
+        try:
+            series_by_symbol[position["symbol"]] = data.series(position["symbol"],
+                                                               as_of=as_of)
+        except DataUnavailable:
+            continue
+
+    risk = RK.portfolio_risk(weights, series_by_symbol)
+    print(f"\nportfolio volatility: {risk.get('volatility')} "
+          f"(measured on {risk.get('holdings_measured', 0)} of {len(weights)} holdings)")
+    print(f"concentration HHI:    {risk.get('hhi')} "
+          f"(~{risk.get('effective_positions')} equally weighted positions)")
+    breaches = RK.limit_breaches(
+        weights,
+        sectors={p["symbol"]: p.get("sector", "Unknown") for p in positions},
+        asset_classes={p["symbol"]: p.get("asset_class", "equity") for p in positions},
+        max_position=float(settings.get("risk.max_position_weight", 0.12)),
+        max_sector=float(settings.get("risk.max_sector_weight", 0.30)),
+        max_crypto=float(settings.get("risk.max_crypto_weight", 0.20)))
+    for breach in breaches:
+        print(f"! {breach}")
+    print("\nHypothetical positions only. This system places no orders.")
+    return 0
+
+
 def cmd_evaluate(args: argparse.Namespace, settings: Settings) -> int:
     from research_engine.pipeline.daily import DailyPipeline
     services = _services(settings)
@@ -455,6 +590,7 @@ COMMANDS = {
     "init": cmd_init, "providers": cmd_providers, "universe": cmd_universe,
     "ingest": cmd_ingest, "daily": cmd_daily, "analyze": cmd_analyze,
     "report": cmd_report, "backtest": cmd_backtest, "evaluate": cmd_evaluate,
+    "portfolio": cmd_portfolio,
     "models": cmd_models, "serve": cmd_serve, "doctor": cmd_doctor,
 }
 
