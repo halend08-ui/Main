@@ -169,7 +169,12 @@ def analyze(inp: AnalysisInput) -> REC.RecommendationResult:
     # -------------------------------------------------------- ensemble ----
     views = E.build_views(
         factor_scores={f.name: f.score for f in factors},
-        rationales=_view_rationales(snapshot, valuation, risk_profile, sentiment))
+        rationales=_view_rationales(snapshot, valuation, risk_profile, sentiment,
+                                    stats=stats, indicators=indicators,
+                                    returns_by_window=(
+                                        RET.horizon_returns(inp.series,
+                                                            (21, 63, 126, 252))
+                                        if inp.series is not None else {})))
     ensemble = E.combine(views)
     evidence.extend(E.ensemble_evidence(ensemble))
 
@@ -668,7 +673,16 @@ def _relative_strength(inp: AnalysisInput) -> float | None:
 
 
 def _view_rationales(snapshot: Any, valuation: Any, risk_profile: RK.RiskProfile,
-                     sentiment: Any) -> dict[str, str]:
+                     sentiment: Any, *, stats: Mapping[str, Any] | None = None,
+                     indicators: Mapping[str, Any] | None = None,
+                     returns_by_window: Mapping[int, float | None] | None = None
+                     ) -> dict[str, str]:
+    """One plain sentence per model view, phrased from that model's perspective.
+
+    The risk view's stance is about *how favourable the risk picture is*, so its
+    rationale must be written that way. Printing "bullish: prior drawdown of
+    48%" reads as though a large drawdown were good news.
+    """
     out: dict[str, str] = {}
     if snapshot is not None:
         roic = snapshot.value("roic")
@@ -680,7 +694,41 @@ def _view_rationales(snapshot: Any, valuation: Any, risk_profile: RK.RiskProfile
         base = valuation.expected_returns().get("base")
         out["valuation"] = (f"{valuation.method} implies {base:+.0%} to fair value"
                             if base is not None else valuation.method)
-    out["risk"] = "; ".join(risk_profile.drivers[:2]) or "risk within normal bounds"
+
+    stats = stats or {}
+    risk_parts: list[str] = []
+    volatility = stats.get("volatility")
+    drawdown = stats.get("max_drawdown")
+    if volatility is not None:
+        risk_parts.append(f"annualised volatility {volatility:.0%}")
+    if drawdown is not None:
+        risk_parts.append(f"worst historical drawdown {abs(drawdown):.0%}")
+    if risk_profile.permanent_loss_score is not None:
+        risk_parts.append(
+            f"permanent-loss risk {risk_profile.permanent_loss_score:.2f}")
+    out["risk"] = (f"assessed {risk_profile.level.value} risk: "
+                   + ", ".join(risk_parts)) if risk_parts else \
+                  f"assessed {risk_profile.level.value} risk"
+
+    returns_by_window = returns_by_window or {}
+    momentum_parts = [f"{label}: {returns_by_window[window]:+.0%}"
+                      for label, window in (("3m", 63), ("6m", 126), ("12m", 252))
+                      if returns_by_window.get(window) is not None]
+    if momentum_parts:
+        out["momentum"] = "trailing return " + ", ".join(momentum_parts)
+
+    indicators = indicators or {}
+    technical_parts: list[str] = []
+    rsi = _last(indicators.get("rsi"))
+    if rsi is not None:
+        technical_parts.append(f"RSI {rsi:.0f}")
+    adx = _last(indicators.get("adx"))
+    if adx is not None:
+        technical_parts.append(f"ADX {adx:.0f} "
+                               f"({'trending' if adx > 25 else 'no clear trend'})")
+    if technical_parts:
+        out["technical"] = ", ".join(technical_parts)
+
     if sentiment is not None and sentiment.score is not None:
         out["sentiment"] = (f"{sentiment.items_scored} items, net "
                             f"{sentiment.score:+.2f}")

@@ -19,6 +19,10 @@ app:
   # Hard safety switch. Trading integrations are not implemented; this exists
   # so that any future execution code has an explicit, auditable gate.
   allow_trading: false
+  # When true, every network provider is replaced by a transport that refuses
+  # requests immediately. Use on air-gapped hosts so runs fail fast and are
+  # recorded as "data unavailable" instead of retrying for minutes.
+  offline: false
 
 database:
   # sqlite path relative to data_dir unless absolute
@@ -64,15 +68,17 @@ ingestion:
     crypto_market: 900
   user_agent: "research-engine/0.1 (contact: set INGESTION_CONTACT_EMAIL)"
   providers:
-    # order = failover order within each capability
-    prices_eod: [csv_local, stooq]
-    fundamentals: [sec_edgar]
+    # Failover order within each capability: authoritative live sources first,
+    # the local-file provider last so an operator-supplied extract keeps the
+    # system running when a provider is down or the host is air-gapped.
+    prices_eod: [stooq, csv_local]
+    fundamentals: [sec_edgar, csv_local]
     crypto_market: [coingecko]
-    crypto_history: [coingecko]
-    news: [rss]
-    macro: [fred]
-    universe_equity: [sec_edgar]
-    universe_crypto: [coingecko]
+    crypto_history: [coingecko, csv_local]
+    news: [rss, csv_local]
+    macro: [fred, csv_local]
+    universe_equity: [sec_edgar, csv_local]
+    universe_crypto: [coingecko, csv_local]
 
 providers:
   stooq:

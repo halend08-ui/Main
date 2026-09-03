@@ -100,7 +100,11 @@ class CoinGeckoProvider(DataProvider):
                            missing=("tvl", "active_addresses", "fees", "unlocks"),
                            partial=True)
 
-    def fetch_universe(self, pages: int = 4, per_page: int = 250) -> ProviderResult:
+    def fetch_universe(self, asset_class: str = "crypto", *, pages: int = 4,
+                       per_page: int = 250) -> ProviderResult:
+        if asset_class != "crypto":
+            raise DataUnavailable(
+                f"{self.name} covers crypto assets only, not {asset_class}")
         records: list[Mapping[str, Any]] = []
         for page in range(1, int(pages) + 1):
             result = self.fetch_crypto_market(page=page, per_page=per_page)

@@ -1,5 +1,5 @@
 {
-  "name": "meridian",
+  "name": "research-engine-dashboard",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -15,5 +15,6 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
     "vite": "^5.4.2"
-  }
+  },
+  "description": "Read-only dashboard for the investment research engine. Renders live analysis from the local API; never substitutes placeholder numbers."
 }

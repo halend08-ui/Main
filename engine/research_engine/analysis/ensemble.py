@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, ClassVar, Iterable, Mapping, Sequence
 
 import numpy as np
 
@@ -63,12 +63,32 @@ class ModelView:
     inputs: Mapping[str, Any] = field(default_factory=dict)
     quality: DataQuality = DataQuality.FAIR
 
+    #: Views whose stance is about conditions rather than direction read badly
+    #: as "bullish"/"bearish"; they get their own vocabulary in reports.
+    _VOCABULARY: ClassVar[dict[str, dict[str, str]]] = {
+        "risk": {"strongly_bullish": "risk supportive",
+                 "bullish": "risk mildly supportive", "neutral": "risk neutral",
+                 "bearish": "risk adverse", "strongly_bearish": "risk strongly adverse",
+                 "no_view": "no view"},
+        "event": {"strongly_bullish": "events favourable",
+                  "bullish": "events mildly favourable", "neutral": "events neutral",
+                  "bearish": "events adverse", "strongly_bearish": "events strongly adverse",
+                  "no_view": "no view"},
+    }
+
     @property
     def has_view(self) -> bool:
         return self.stance is not Stance.NO_VIEW
 
+    def display_stance(self) -> str:
+        vocabulary = ModelView._VOCABULARY.get(self.name)
+        if vocabulary:
+            return vocabulary[self.stance.value]
+        return self.stance.value.replace("_", " ")
+
     def to_dict(self) -> dict[str, Any]:
         return {"model": self.name, "stance": self.stance.value,
+                "stance_display": self.display_stance(),
                 "confidence": round(self.confidence, 3),
                 "score": None if self.score is None else round(self.score, 1),
                 "rationale": self.rationale, "quality": self.quality.value,
@@ -91,7 +111,7 @@ class EnsembleResult:
 
     def summary_table(self) -> list[tuple[str, str]]:
         """The 'show the disagreement' table used verbatim in reports."""
-        return [(v.name, v.stance.value.replace("_", " ").title()) for v in self.views]
+        return [(v.name, v.display_stance().title()) for v in self.views]
 
     def to_dict(self) -> dict[str, Any]:
         return {"consensus": self.consensus.value,
@@ -205,7 +225,7 @@ def ensemble_evidence(result: EnsembleResult) -> list[Evidence]:
         if abs(direction) < 0.2:
             continue
         out.append(Evidence(
-            label=f"{view.name.title()} model: {view.stance.value.replace('_', ' ')}",
+            label=f"{view.name.title()} model: {view.display_stance()}",
             detail=view.rationale or "no rationale recorded",
             direction=direction, weight=clamp(view.confidence, 0.1, 1.0),
             claim_type=ClaimType.MODEL_PREDICTION, quality=view.quality,

@@ -47,8 +47,9 @@ def _num(row: Mapping[str, Any], key: str) -> float | None:
 class CsvLocalProvider(DataProvider):
     name = "csv_local"
     capabilities = frozenset({
-        Capability.PRICES_EOD, Capability.FUNDAMENTALS, Capability.MACRO,
-        Capability.NEWS, Capability.UNIVERSE_EQUITY, Capability.UNIVERSE_CRYPTO,
+        Capability.PRICES_EOD, Capability.CRYPTO_HISTORY, Capability.FUNDAMENTALS,
+        Capability.MACRO, Capability.NEWS, Capability.UNIVERSE_EQUITY,
+        Capability.UNIVERSE_CRYPTO,
     })
     source_tier = SourceTier.DATA_PROVIDER
     default_quality = DataQuality.GOOD
@@ -74,9 +75,12 @@ class CsvLocalProvider(DataProvider):
         if not path.exists():
             raise DataUnavailable(f"{self.name}: no file {path}")
         with path.open(newline="", encoding="utf-8") as fh:
-            return [ {(k or "").strip().lower(): (v.strip() if isinstance(v, str) else v)
-                      for k, v in row.items()}
-                     for row in csv.DictReader(fh) ]
+            # Skip leading comment lines: vendor extracts and our own synthetic
+            # fixtures carry a provenance banner above the header.
+            lines = [line for line in fh if not line.lstrip().startswith("#")]
+        return [{(k or "").strip().lower(): (v.strip() if isinstance(v, str) else v)
+                 for k, v in row.items()}
+                for row in csv.DictReader(lines)]
 
     # -- capabilities ------------------------------------------------------
     def fetch_prices(self, symbol: str, *, start: date | None = None,
@@ -107,6 +111,21 @@ class CsvLocalProvider(DataProvider):
                            as_of=bars[-1]["date"] if bars else None,
                            url=str(self.root / f"prices/{symbol.upper()}.csv"),
                            missing=missing, partial=bool(missing))
+
+    def fetch_crypto_history(self, coin_id: str, *, days: int = 365) -> ProviderResult:
+        """Crypto history from the same ``prices/<SYMBOL>.csv`` layout.
+
+        A local daily-close file *is* crypto history; the only difference from
+        the equity path is that the close needs no dividend adjustment.
+        """
+        result = self.fetch_prices(coin_id.upper())
+        bars = list(result.records)[-int(days):] if days else list(result.records)
+        for bar in bars:
+            if bar.get("adj_close") is None:
+                bar["adj_close"] = bar["close"]
+        return self.result(Capability.CRYPTO_HISTORY, bars,
+                           as_of=bars[-1]["date"] if bars else None,
+                           url=str(self.root / f"prices/{coin_id.upper()}.csv"))
 
     def fetch_fundamentals(self, symbol: str, *,
                            identifiers: Mapping[str, Any] | None = None) -> ProviderResult:

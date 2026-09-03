@@ -1,4 +1,23 @@
+# node / web
 node_modules
 dist
 .env
 .env.local
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# engine runtime artifacts (never commit research output or downloaded data)
+engine/data/
+engine/**/cache/
+*.db
+*.db-wal
+*.db-shm
+alerts.jsonl

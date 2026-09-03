@@ -258,18 +258,37 @@ def test_csv_local_defaults_filed_date_to_period_end(tmp_path):
 
 
 # ------------------------------------------------------------- registry ----
-def test_registry_failover_and_health(settings, tmp_path):
+def test_registry_uses_the_primary_provider_first(settings, tmp_path):
     transport = FakeTransport().add_text("stooq.com", STOOQ_CSV)
     health: list[tuple[str, bool]] = []
     registry = build_registry(settings, transport=transport,
                               cache=ResponseCache(tmp_path / "cache"),
                               health_hook=lambda n, ok: health.append((n, ok)))
-    # csv_local comes first in the default chain but has no data directory
     result, report = registry.require(Capability.PRICES_EOD, "fetch_prices",
                                       "AAPL", target="AAPL")
-    assert result.provider == "stooq"
-    assert any(a.skipped_reason for a in report.attempts)
+    assert result.provider == "stooq"          # live source before local extract
     assert ("stooq", True) in health
+
+
+def test_registry_falls_back_to_the_local_extract(settings, tmp_path):
+    """When the live provider fails, an operator-supplied extract keeps the
+    system running -- and the failover is visible in the report."""
+    local_root = settings.path("local")
+    (local_root / "prices").mkdir(parents=True)
+    (local_root / "prices" / "AAPL.csv").write_text(
+        "date,open,high,low,close,volume\n2026-01-02,1,2,0.5,1.5,100\n")
+    transport = FakeTransport().add(
+        "stooq.com", Response(503, "upstream down", {}, "stooq"))
+    registry = build_registry(settings, transport=transport,
+                              cache=ResponseCache(tmp_path / "cache"))
+    stooq = registry.get("stooq")
+    stooq.retry = RetryPolicy(max_retries=0)
+    stooq._sleep = lambda seconds: None
+    result, report = registry.require(Capability.PRICES_EOD, "fetch_prices",
+                                      "AAPL", target="AAPL")
+    assert result.provider == "csv_local"
+    assert report.failover_used
+    assert any(a.provider == "stooq" and a.error for a in report.attempts)
 
 
 def test_registry_reports_unavailable_rather_than_inventing(settings):

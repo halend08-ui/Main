@@ -291,8 +291,9 @@ class DataProvider:
                     start: date | None = None) -> ProviderResult:
         raise NotImplementedError(f"{self.name} does not provide macro series")
 
-    def fetch_universe(self) -> ProviderResult:
-        raise NotImplementedError(f"{self.name} does not provide a universe")
+    def fetch_universe(self, asset_class: str = "equity") -> ProviderResult:
+        raise NotImplementedError(
+            f"{self.name} does not provide a {asset_class} universe")
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid
         return f"<{type(self).__name__} name={self.name} caps={sorted(c.value for c in self.capabilities)}>"

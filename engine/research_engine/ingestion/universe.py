@@ -121,7 +121,8 @@ class UniverseBuilder:
         stats = UniverseStats()
         try:
             result, report = self.registry.require(
-                Capability.UNIVERSE_EQUITY, "fetch_universe", target="equity")
+                Capability.UNIVERSE_EQUITY, "fetch_universe", "equity",
+                target="equity")
         except DataUnavailable as exc:
             stats.errors.append(str(exc))
             log.error("equity universe unavailable", error=str(exc))
@@ -165,7 +166,8 @@ class UniverseBuilder:
         stats = UniverseStats()
         try:
             result, _ = self.registry.require(
-                Capability.UNIVERSE_CRYPTO, "fetch_universe", target="crypto")
+                Capability.UNIVERSE_CRYPTO, "fetch_universe", "crypto",
+                target="crypto")
         except DataUnavailable as exc:
             stats.errors.append(str(exc))
             log.error("crypto universe unavailable", error=str(exc))

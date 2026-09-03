@@ -121,7 +121,10 @@ class SecEdgarProvider(DataProvider):
                 "Accept-Encoding": "gzip, deflate"}
 
     # -- universe ----------------------------------------------------------
-    def fetch_universe(self) -> ProviderResult:
+    def fetch_universe(self, asset_class: str = "equity") -> ProviderResult:
+        if asset_class != "equity":
+            raise DataUnavailable(
+                f"{self.name} covers SEC registrants only, not {asset_class}")
         payload = self.request_json(self.tickers_url, cache_key="company_tickers",
                                     ttl_seconds=self.ttl_seconds)
         rows = payload.values() if isinstance(payload, dict) else payload
