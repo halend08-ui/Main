@@ -19,7 +19,7 @@ Generate ≥10 candidates across ≥4 problem spaces. Record why each was seeded
 Reject immediately: regulated categories we cannot verify (ingestibles, cosmetics with claims, medical,
 child-safety-critical, electrical without verifiable certification), IP/knock-off risk, unsafe-to-ship
 (lithium batteries, aerosols, flammables) without verified compliant fulfillment, platform-prohibited,
-or margin below floor (gross margin before ads < 60% at a realistic price — ASSUMPTION, revisit with data).
+or margin below floor — mid case product gross margin < 60% **or** contribution after shipping + payment fees < 40% (DEC-008).
 
 ### 3. Dossier
 Copy `templates/candidate.md` to `candidates/<ID>-<slug>.md` (IDs `C-001`…). Every claim tagged

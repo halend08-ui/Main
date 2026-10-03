@@ -1,4 +1,353 @@
 {
-  "_doc": "Scores 1-5 (5 always better for us), null = UNKNOWN. See lib/research/scoring.mjs. Run: npm run score:candidates",
-  "candidates": []
+ "_doc": "Scores 1-5 (5 always better for us), null = UNKNOWN. See lib/research/scoring.mjs. Run: npm run score:candidates. Orchestrator adjustments per DEC-008/DEC-009 (2026-10-03).",
+ "candidates": [
+  {
+   "id": "C-001",
+   "name": "Pipe-aware pull-out under-sink organizer",
+   "scores": {
+    "customerProblem": 4,
+    "demandEvidence": 3,
+    "grossMarginPotential": 2,
+    "differentiation": 3,
+    "competitiveDensity": 1,
+    "demonstrability": 4,
+    "creativePotential": 3,
+    "shippingSimplicity": 2,
+    "returnRisk": 2,
+    "breakageRisk": 4,
+    "qualityRisk": 2,
+    "supplierReliability": null,
+    "repeatPurchase": 2,
+    "bundlePotential": 3,
+    "seasonalityStability": 4,
+    "regulatoryRisk": 4
+   },
+   "knockouts": {
+    "regulatedCategory": false,
+    "ipRisk": false,
+    "marginBelowFloor": true,
+    "unsafeToShip": false,
+    "platformProhibited": false
+   }
+  },
+  {
+   "id": "C-002",
+   "name": "Heavy-duty expandable vertical pan & lid organizer",
+   "scores": {
+    "customerProblem": 4,
+    "demandEvidence": 3,
+    "grossMarginPotential": 3,
+    "differentiation": 3,
+    "competitiveDensity": 2,
+    "demonstrability": 5,
+    "creativePotential": 3,
+    "shippingSimplicity": 3,
+    "returnRisk": 3,
+    "breakageRisk": 4,
+    "qualityRisk": 3,
+    "supplierReliability": null,
+    "repeatPurchase": 1,
+    "bundlePotential": 3,
+    "seasonalityStability": 4,
+    "regulatoryRisk": 4
+   },
+   "knockouts": {
+    "regulatedCategory": false,
+    "ipRisk": false,
+    "marginBelowFloor": false,
+    "unsafeToShip": false,
+    "platformProhibited": false
+   }
+  },
+  {
+   "id": "C-003",
+   "name": "Rust-proof roll-up over-the-sink drying rack",
+   "scores": {
+    "customerProblem": 3,
+    "demandEvidence": 3,
+    "grossMarginPotential": 2,
+    "differentiation": 2,
+    "competitiveDensity": 1,
+    "demonstrability": 4,
+    "creativePotential": 3,
+    "shippingSimplicity": 5,
+    "returnRisk": 3,
+    "breakageRisk": 5,
+    "qualityRisk": 2,
+    "supplierReliability": null,
+    "repeatPurchase": 2,
+    "bundlePotential": 4,
+    "seasonalityStability": 5,
+    "regulatoryRisk": 4
+   },
+   "knockouts": {
+    "regulatedCategory": false,
+    "ipRisk": false,
+    "marginBelowFloor": true,
+    "unsafeToShip": false,
+    "platformProhibited": false
+   }
+  },
+  {
+   "id": "C-004",
+   "name": "Safety-first mandoline kit (guard + cut-resistant gloves)",
+   "scores": {
+    "customerProblem": 4,
+    "demandEvidence": 3,
+    "grossMarginPotential": 3,
+    "differentiation": 3,
+    "competitiveDensity": 2,
+    "demonstrability": 5,
+    "creativePotential": 4,
+    "shippingSimplicity": 4,
+    "returnRisk": 3,
+    "breakageRisk": 4,
+    "qualityRisk": 2,
+    "supplierReliability": null,
+    "repeatPurchase": 2,
+    "bundlePotential": 4,
+    "seasonalityStability": 4,
+    "regulatoryRisk": 2
+   },
+   "knockouts": {
+    "regulatedCategory": false,
+    "ipRisk": false,
+    "marginBelowFloor": true,
+    "unsafeToShip": false,
+    "platformProhibited": false
+   }
+  },
+  {
+   "id": "C-005",
+   "name": "Cat couch deter + redirect kit (guards + matching sisal scratcher)",
+   "scores": {
+    "customerProblem": 4,
+    "demandEvidence": 3,
+    "grossMarginPotential": 3,
+    "differentiation": 3,
+    "competitiveDensity": 2,
+    "demonstrability": 4,
+    "creativePotential": 4,
+    "shippingSimplicity": 5,
+    "returnRisk": 3,
+    "breakageRisk": 5,
+    "qualityRisk": 3,
+    "supplierReliability": null,
+    "repeatPurchase": 3,
+    "bundlePotential": 4,
+    "seasonalityStability": 5,
+    "regulatoryRisk": 5
+   },
+   "knockouts": {
+    "regulatedCategory": false,
+    "ipRisk": false,
+    "marginBelowFloor": false,
+    "unsafeToShip": false,
+    "platformProhibited": false
+   }
+  },
+  {
+   "id": "C-006",
+   "name": "Anti-sag non-slip back-seat dog hammock",
+   "scores": {
+    "customerProblem": 4,
+    "demandEvidence": 3,
+    "grossMarginPotential": 3,
+    "differentiation": 3,
+    "competitiveDensity": 2,
+    "demonstrability": 4,
+    "creativePotential": 4,
+    "shippingSimplicity": 2,
+    "returnRisk": 2,
+    "breakageRisk": 4,
+    "qualityRisk": 3,
+    "supplierReliability": null,
+    "repeatPurchase": 1,
+    "bundlePotential": 3,
+    "seasonalityStability": 4,
+    "regulatoryRisk": 4
+   },
+   "knockouts": {
+    "regulatedCategory": false,
+    "ipRisk": false,
+    "marginBelowFloor": false,
+    "unsafeToShip": false,
+    "platformProhibited": false
+   }
+  },
+  {
+   "id": "C-007",
+   "name": "Renter-friendly wind-rated balcony privacy screen kit",
+   "scores": {
+    "customerProblem": 3,
+    "demandEvidence": 3,
+    "grossMarginPotential": 3,
+    "differentiation": 2,
+    "competitiveDensity": 1,
+    "demonstrability": 4,
+    "creativePotential": 3,
+    "shippingSimplicity": 4,
+    "returnRisk": 3,
+    "breakageRisk": 5,
+    "qualityRisk": 3,
+    "supplierReliability": null,
+    "repeatPurchase": 2,
+    "bundlePotential": 3,
+    "seasonalityStability": 2,
+    "regulatoryRisk": 4
+   },
+   "knockouts": {
+    "regulatedCategory": false,
+    "ipRisk": false,
+    "marginBelowFloor": false,
+    "unsafeToShip": false,
+    "platformProhibited": false
+   }
+  },
+  {
+   "id": "C-008",
+   "name": "Pre-calibrated gravity vacation watering kit (no pump/battery)",
+   "scores": {
+    "customerProblem": 4,
+    "demandEvidence": 3,
+    "grossMarginPotential": 4,
+    "differentiation": 3,
+    "competitiveDensity": 3,
+    "demonstrability": 3,
+    "creativePotential": 4,
+    "shippingSimplicity": 5,
+    "returnRisk": 3,
+    "breakageRisk": 5,
+    "qualityRisk": 2,
+    "supplierReliability": null,
+    "repeatPurchase": 2,
+    "bundlePotential": 4,
+    "seasonalityStability": 3,
+    "regulatoryRisk": 4
+   },
+   "knockouts": {
+    "regulatedCategory": false,
+    "ipRisk": false,
+    "marginBelowFloor": false,
+    "unsafeToShip": false,
+    "platformProhibited": false
+   }
+  },
+  {
+   "id": "C-009",
+   "name": "Deep no-drill under-desk cable tray",
+   "scores": {
+    "customerProblem": 3,
+    "demandEvidence": 3,
+    "grossMarginPotential": 2,
+    "differentiation": 2,
+    "competitiveDensity": 1,
+    "demonstrability": 4,
+    "creativePotential": 3,
+    "shippingSimplicity": 2,
+    "returnRisk": 3,
+    "breakageRisk": 5,
+    "qualityRisk": 3,
+    "supplierReliability": null,
+    "repeatPurchase": 1,
+    "bundlePotential": 3,
+    "seasonalityStability": 4,
+    "regulatoryRisk": 4
+   },
+   "knockouts": {
+    "regulatedCategory": false,
+    "ipRisk": false,
+    "marginBelowFloor": true,
+    "unsafeToShip": false,
+    "platformProhibited": false
+   }
+  },
+  {
+   "id": "C-010",
+   "name": "Knit/crochet project bag with open-slot yarn guides",
+   "scores": {
+    "customerProblem": 3,
+    "demandEvidence": 3,
+    "grossMarginPotential": 3,
+    "differentiation": 3,
+    "competitiveDensity": 2,
+    "demonstrability": 4,
+    "creativePotential": 4,
+    "shippingSimplicity": 5,
+    "returnRisk": 4,
+    "breakageRisk": 5,
+    "qualityRisk": 3,
+    "supplierReliability": null,
+    "repeatPurchase": 2,
+    "bundlePotential": 4,
+    "seasonalityStability": 3,
+    "regulatoryRisk": 4
+   },
+   "knockouts": {
+    "regulatedCategory": false,
+    "ipRisk": false,
+    "marginBelowFloor": false,
+    "unsafeToShip": false,
+    "platformProhibited": false
+   }
+  },
+  {
+   "id": "C-011",
+   "name": "Spill-proof diamond-painting drill storage case",
+   "scores": {
+    "customerProblem": 3,
+    "demandEvidence": 3,
+    "grossMarginPotential": 2,
+    "differentiation": 2,
+    "competitiveDensity": 2,
+    "demonstrability": 5,
+    "creativePotential": 3,
+    "shippingSimplicity": 3,
+    "returnRisk": 4,
+    "breakageRisk": 3,
+    "qualityRisk": 2,
+    "supplierReliability": null,
+    "repeatPurchase": 3,
+    "bundlePotential": 4,
+    "seasonalityStability": null,
+    "regulatoryRisk": 4
+   },
+   "knockouts": {
+    "regulatedCategory": false,
+    "ipRisk": false,
+    "marginBelowFloor": true,
+    "unsafeToShip": false,
+    "platformProhibited": false
+   }
+  },
+  {
+   "id": "C-012",
+   "name": "Tangle-free structured travel jewelry case",
+   "scores": {
+    "customerProblem": 4,
+    "demandEvidence": 3,
+    "grossMarginPotential": 4,
+    "differentiation": 2,
+    "competitiveDensity": 1,
+    "demonstrability": 5,
+    "creativePotential": 4,
+    "shippingSimplicity": 5,
+    "returnRisk": 4,
+    "breakageRisk": 4,
+    "qualityRisk": 3,
+    "supplierReliability": null,
+    "repeatPurchase": 2,
+    "bundlePotential": 4,
+    "seasonalityStability": 3,
+    "regulatoryRisk": 4
+   },
+   "knockouts": {
+    "regulatedCategory": false,
+    "ipRisk": false,
+    "marginBelowFloor": false,
+    "unsafeToShip": false,
+    "platformProhibited": false
+   }
+  }
+ ]
 }

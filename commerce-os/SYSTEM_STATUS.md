@@ -71,7 +71,7 @@ _Generated 2026-10-03 by orchestrator. Everything below was actually run/inspect
 _No spending approvals pending._
 
 ## Next autonomous action
-Stage 1 product/market research: build a ≥10-candidate pool per `research/PRODUCT_RESEARCH_WORKFLOW.md`, score it, verify top claims, shortlist 3. (Task T-01 in BUSINESS_STATE.md.)
+Stage 1 pool complete (12 candidates, provisional shortlist C-005 / C-012 / C-008 — DEC-010). Next: deep dives on the shortlist — competitor teardowns (T-03), supplier desk research (T-04), unit economics (T-05) — then a product thesis and a sample-order approval request (T-06). Evidence quality is limited until retail/forum page access is allowed (APR-004, RISK-009).
 
 ## Known verification gaps
 V-1..V-4 in `docs/SHOPIFY_ARCHITECTURE.md` (webhook headers, current flagship theme, 2026-10 status, customer events) — need shopify.dev access.

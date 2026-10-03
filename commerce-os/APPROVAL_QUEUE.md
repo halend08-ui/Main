@@ -35,4 +35,5 @@ Resolve by replying in chat (or editing **Status**); the orchestrator records th
 ### APR-004 · Network allow-list for this cloud environment
 - **Blocked hosts observed 2026-10-03:** `shopify.dev`, `accounts.shopify.com`, `partners.shopify.com`, `admin.shopify.com`, `*.myshopify.com`, `google.com`, `trends.google.com`, `reddit.com`, `amazon.com`.
 - **Action:** Environment settings → Network access → Custom → add `shopify.dev`, `*.shopify.com`, `*.myshopify.com`, `*.shopifycdn.com`, `cdn.shopify.com` (keep default package-manager list). Docs: https://code.claude.com/docs/en/cloud-environments#network-access
+- **Also useful for research (optional):** `amazon.com`, `walmart.com`, `target.com`, `etsy.com`, `reddit.com`, `alibaba.com` — research agents could only see search-result summaries, not the pages themselves (RISK-009).
 - **Impact if declined:** Shopify docs search via MCP and store operations must run from your local machine; web research continues via the server-side search tool.
