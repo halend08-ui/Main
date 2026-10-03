@@ -1,0 +1,14 @@
+# Create an Online Store page (FAQ, About, Contact copy).
+mutation PageCreate($page: PageCreateInput!) {
+  pageCreate(page: $page) {
+    page {
+      id
+      handle
+    }
+    userErrors {
+      field
+      message
+      code
+    }
+  }
+}

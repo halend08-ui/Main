@@ -1,0 +1,26 @@
+{
+  "adminApiVersion": "2026-07",
+  "adminApiVersionVerified": {
+    "source": "Shopify Dev MCP v1.16.0 learn_shopify_api(api=admin) default version",
+    "date": "2026-10-02"
+  },
+  "nextVersionReview": "2027-01-01",
+  "accessScopes": {
+    "_policy": "Least privilege. A scope moves from 'planned' to 'requested' only with a DEC entry.",
+    "requested": [],
+    "planned": [
+      { "scope": "read_products", "why": "Read catalog for sync/QA/SEO audits" },
+      { "scope": "write_products", "why": "Create/update products, variants, collections, product metafields, SEO fields" },
+      { "scope": "read_inventory", "why": "Inventory monitoring" },
+      { "scope": "write_inventory", "why": "Set inventory quantities when fulfilment model requires it" },
+      { "scope": "read_orders", "why": "Analytics: orders, AOV, refunds (last 60 days without read_all_orders)" },
+      { "scope": "read_content", "why": "Audit pages/blog content" },
+      { "scope": "write_content", "why": "Create pages (FAQ, About, Contact) and blog articles" }
+    ],
+    "explicitlyNotRequested": [
+      "read_customers / write_customers (not needed until lifecycle email requires it; PII)",
+      "read_all_orders (needs Shopify approval; only if >60-day history required)",
+      "write_orders, write_payment_terms, any payments scope"
+    ]
+  }
+}

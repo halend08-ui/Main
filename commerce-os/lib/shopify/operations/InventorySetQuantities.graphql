@@ -1,0 +1,14 @@
+# Set absolute inventory quantities with compare-and-set semantics and an idempotency key.
+mutation InventorySetQuantities($input: InventorySetQuantitiesInput!, $idempotencyKey: String!) {
+  inventorySetQuantities(input: $input) @idempotent(key: $idempotencyKey) {
+    inventoryAdjustmentGroup {
+      id
+      reason
+    }
+    userErrors {
+      field
+      message
+      code
+    }
+  }
+}

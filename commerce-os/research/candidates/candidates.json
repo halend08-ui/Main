@@ -1,0 +1,4 @@
+{
+  "_doc": "Scores 1-5 (5 always better for us), null = UNKNOWN. See lib/research/scoring.mjs. Run: npm run score:candidates",
+  "candidates": []
+}

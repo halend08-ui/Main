@@ -1,0 +1,10 @@
+# List themes and roles (to make sure we never write to the MAIN theme by accident).
+query ThemesList {
+  themes(first: 20) {
+    nodes {
+      id
+      name
+      role
+    }
+  }
+}

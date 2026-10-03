@@ -1,0 +1,19 @@
+# Idempotent create-or-update of a product with its options/variants (preferred sync mutation).
+mutation ProductSet($input: ProductSetInput!, $identifier: ProductSetIdentifiers, $synchronous: Boolean!) {
+  productSet(input: $input, identifier: $identifier, synchronous: $synchronous) {
+    product {
+      id
+      handle
+      status
+    }
+    productSetOperation {
+      id
+      status
+    }
+    userErrors {
+      field
+      message
+      code
+    }
+  }
+}

@@ -1,0 +1,17 @@
+# Update product fields (e.g. SEO title/description, tags, status) and optionally attach media.
+mutation ProductUpdate($product: ProductUpdateInput!, $media: [CreateMediaInput!]) {
+  productUpdate(product: $product, media: $media) {
+    product {
+      id
+      status
+      seo {
+        title
+        description
+      }
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}

@@ -1,0 +1,50 @@
+# Orders for metric computation. Deliberately selects NO customer PII.
+query OrdersForAnalytics($first: Int!, $after: String, $query: String) {
+  orders(first: $first, after: $after, query: $query, sortKey: CREATED_AT) {
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    nodes {
+      id
+      createdAt
+      displayFinancialStatus
+      subtotalPriceSet {
+        shopMoney {
+          amount
+          currencyCode
+        }
+      }
+      totalShippingPriceSet {
+        shopMoney {
+          amount
+        }
+      }
+      totalDiscountsSet {
+        shopMoney {
+          amount
+        }
+      }
+      totalRefundedSet {
+        shopMoney {
+          amount
+        }
+      }
+      currentTotalPriceSet {
+        shopMoney {
+          amount
+        }
+      }
+      customerJourneySummary {
+        firstVisit {
+          source
+          utmParameters {
+            source
+            medium
+            campaign
+          }
+        }
+      }
+    }
+  }
+}

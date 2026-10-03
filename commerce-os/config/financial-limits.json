@@ -1,0 +1,11 @@
+{
+  "_comment": "OWNER-ONLY FILE. Agents must never edit. 0 = approval required for ANY amount. Currency applies to all limits.",
+  "currency": "USD",
+  "MAX_DAILY_AD_SPEND": 0,
+  "MAX_CAMPAIGN_TEST_SPEND": 0,
+  "MAX_APP_PURCHASE": 0,
+  "MAX_REFUND_WITHOUT_APPROVAL": 0,
+  "MAX_SUPPLIER_ORDER_WITHOUT_APPROVAL": 0,
+  "last_changed_by": "initial-default",
+  "last_changed_on": "2026-10-02"
+}

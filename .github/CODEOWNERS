@@ -1,0 +1,5 @@
+# Owner must review changes to safety-critical files.
+/commerce-os/config/financial-limits.json  @halend08-ui
+/commerce-os/CLAUDE.md                     @halend08-ui
+/.claude/                                  @halend08-ui
+/.github/                                  @halend08-ui

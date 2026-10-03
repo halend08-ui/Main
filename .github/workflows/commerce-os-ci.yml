@@ -1,0 +1,66 @@
+name: commerce-os CI
+
+on:
+  pull_request:
+    paths: ['commerce-os/**', '.github/workflows/commerce-os-ci.yml', '.claude/**', '.mcp.json']
+  push:
+    branches: [main]
+    paths: ['commerce-os/**', '.github/workflows/commerce-os-ci.yml', '.claude/**', '.mcp.json']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: commerce-os-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: commerce-os
+
+jobs:
+  checks:
+    name: Tests, secret scan, limits, links
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - run: npm test
+      - run: npm run scan:secrets
+      - run: npm run check:limits
+      - run: npm run check:links
+
+  graphql:
+    name: GraphQL schema validation (Shopify Dev MCP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OPT_OUT_INSTRUMENTATION: 'true'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - run: npm run validate:graphql
+
+  theme:
+    name: Shopify theme check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - id: detect
+        run: |
+          if [ -f store/theme/layout/theme.liquid ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; echo "No theme yet — skipping."; fi
+      - if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - if: steps.detect.outputs.present == 'true'
+        run: npm install -g @shopify/cli@4
+      - if: steps.detect.outputs.present == 'true'
+        run: shopify theme check --path store/theme --fail-level error

@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.*
+!.env.example
+logs/
+*.log
+.shopify/
+store/theme/.shopify/
+reports/raw/
+*.pem
+*.key
+*.p12
+.DS_Store
+coverage/

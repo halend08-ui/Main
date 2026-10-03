@@ -1,0 +1,13 @@
+# Subscribe to a webhook topic delivered to an HTTPS endpoint.
+mutation WebhookSubscriptionCreate($topic: WebhookSubscriptionTopic!, $webhookSubscription: WebhookSubscriptionInput!) {
+  webhookSubscriptionCreate(topic: $topic, webhookSubscription: $webhookSubscription) {
+    webhookSubscription {
+      id
+      topic
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}

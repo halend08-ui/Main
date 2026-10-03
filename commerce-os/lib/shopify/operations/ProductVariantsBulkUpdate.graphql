@@ -1,0 +1,14 @@
+# Bulk update variant pricing/attributes for one product.
+mutation ProductVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+  productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+    productVariants {
+      id
+      price
+      compareAtPrice
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}

@@ -1,0 +1,21 @@
+# Paginated product listing for audits (SEO, inventory, status).
+query ProductsList($first: Int!, $after: String, $query: String) {
+  products(first: $first, after: $after, query: $query) {
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    nodes {
+      id
+      handle
+      title
+      status
+      totalInventory
+      updatedAt
+      seo {
+        title
+        description
+      }
+    }
+  }
+}

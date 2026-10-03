@@ -1,0 +1,18 @@
+{
+  "name": "commerce-os",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Evidence-driven autonomous Shopify commerce operating system",
+  "type": "module",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
+    "check:limits": "node scripts/check-financial-limits.mjs",
+    "check:links": "node scripts/check-links.mjs",
+    "validate:graphql": "node scripts/validate-graphql.mjs",
+    "new:experiment": "node scripts/new-experiment.mjs",
+    "score:candidates": "node scripts/score-candidates.mjs",
+    "check": "npm test && npm run scan:secrets && npm run check:limits && npm run check:links"
+  }
+}

@@ -1,0 +1,13 @@
+# Upload/register files (images) from a staged or external URL.
+mutation FileCreate($files: [FileCreateInput!]!) {
+  fileCreate(files: $files) {
+    files {
+      id
+      fileStatus
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}

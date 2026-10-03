@@ -1,0 +1,11 @@
+# Read basic shop facts used to sanity-check the connection and currency.
+query ShopInfo {
+  shop {
+    name
+    myshopifyDomain
+    currencyCode
+    primaryDomain {
+      host
+    }
+  }
+}
