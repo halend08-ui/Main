@@ -30,7 +30,7 @@ An expandable base (≈12–22 in wide) with **tall, adjustable steel dividers**
 - [FACT] Walmart prices: Behost $13.98, PANTASIA $13.49 (was $22.99), Delamu from $13.99, Mirdinner $17.99, DEGUO $17.98–$20.99, Towond $35.99 [S-A18].
 - [FACT] YouCopia StoreMore Expandable Cookware Rack: $39.99 (youcopia.com, Wayfair), $49.99 (Crate & Barrel), $29.98 (Sam's Club), $23.99 sale (Walmart) [S-A20].
 - [FACT] Pull-out lid/pan organizers: Wayfair Basics $43.99 (was $69.99), LYNK Professional $64.99 (Home Depot), LOVMOR $42.99, ROOMTEC $24.99 (was $49.00) [S-A22]; Numhew standing rack $90.66 (Home Depot) [S-A19].
-- [FACT] The Kitchn and Apartment Therapy have published dedicated reviews of the YouCopia rack / pot organizers [S-A20][S-A33-context: thekitchn.com result titles]. [INFERENCE] Editorial attention indicates sustained consumer interest.
+- [FACT] Apartment Therapy has published a dedicated review of the YouCopia StoreMore rack [S-A20], and The Kitchn has a "best pot organizer on Amazon" article (title seen in search results only) [S-A34]. [INFERENCE] Editorial attention indicates sustained consumer interest.
 - Search / trend signals: **UNKNOWN**.
 
 ## Competitive environment
