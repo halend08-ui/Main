@@ -34,6 +34,10 @@ _Generated 2026-10-03 by orchestrator. Everything below was actually run/inspect
 - Needs network: `search_docs_chunks` (shopify.dev) — blocked here.
 - Loads automatically in new Claude Code sessions opened at the repo root (approve the project MCP server when prompted).
 
+✅ REA `rea-agents@6.5.0` configured in `/.mcp.json` + skill `/.claude/skills/reverse-engineer-anything/` (DEC-011, 2026-10-14). Verified: MCP handshake (207 tools), JS/Electron static analysis, source test suite 523/523 files.
+- ⚠️ No native engine (Ghidra/Hopper/IDA) → binary decompilation unavailable. Ghidra 12.1.4 install blocked by container egress (github.com releases → 403); Hopper/IDA are paid (APR needed).
+- Usage boundary: own/authorized targets only — see DEC-011.
+
 ## Repository
 ✅ `commerce-os/` structure created (agents, research, brand, store, products, marketing, ads, organic, email, seo, analytics, experiments, operations, customer-support, supplier-research, scripts, tests, docs, memory, decisions, reports, assets, archive, config, lib).
 ✅ Unrelated root "Meridian" React demo untouched.

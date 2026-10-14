@@ -4,6 +4,10 @@
       "command": "npx",
       "args": ["-y", "@shopify/dev-mcp@1.16.0"],
       "env": { "OPT_OUT_INSTRUMENTATION": "true" }
+    },
+    "rea": {
+      "command": "npx",
+      "args": ["-y", "rea-agents@6.5.0", "mcp"]
     }
   }
 }

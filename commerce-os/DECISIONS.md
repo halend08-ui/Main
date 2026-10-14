@@ -4,6 +4,24 @@ ADR-style log. Newest first. Format: context → options → decision → conseq
 
 ---
 
+### DEC-011 · 2026-10-14 · Add REA (`rea-agents@6.5.0`) as a project MCP server + skill
+- **Context:** Owner asked to download REA ("Reverse Engineer Anything", github.com/morluto/rea), verify it, and add it to the project. It is a third-party package, so §6.4 vetting applies.
+- **Vetting (§6.4):**
+  - Owner: GitHub user `morluto`; official sources per its README = github.com/morluto/rea, rea.tools, npm `rea-agents`. Not Shopify/Anthropic/GitHub/OpenJS.
+  - Purpose: local static/runtime analysis of binaries, JavaScript/Electron apps, .NET, Android and web bundles, exposed as one CLI + MCP server (207 tools).
+  - Official alternative: none for this capability. Shopify work does not need it (it already runs on the Shopify Dev MCP + docs).
+  - Last release: 6.5.0, npm modified 2026-10-14 (same day as adoption; pinned exactly, see below). License: MIT.
+  - Known vulnerabilities: `npm audit` on a clean install of `rea-agents@6.5.0` → **0 vulnerabilities** (173 packages). One deprecation warning (`prebuild-install@7.1.3`).
+  - Install scripts: none in its `package.json` (no preinstall/install/postinstall).
+  - Telemetry / network: documented as local-only; source grep found no analytics/telemetry client. Runtime-capture tools (browser, process, adb, network) can touch other systems — see usage boundary.
+- **Verified in this container (2026-10-14):** source clone → `npm ci` ✅, `npm run build:cached` ✅, `npm run test:fast` ✅ **523/523 test files, 7,868 tests passed, 13 skipped**; published CLI `analyze-javascript-application` on a self-written Electron sample ✅ (traced `api.search` → IPC `search` with file/line evidence); MCP `initialize` + `tools/list` ✅ (server `rea` 6.5.0, protocol 2025-06-18, 207 tools). `rea doctor` = not healthy only because no native engine (Ghidra/Hopper/IDA) is installed. Ghidra download blocked by container egress (github.com release pages → 403).
+- **Decision:**
+  - Register in `/.mcp.json` as `npx -y rea-agents@6.5.0 mcp`, **pinned exactly** (same policy as DEC-004). REA's docs prefer local scope over `.mcp.json`; we use project scope deliberately so the config is reviewed in git and pinned. It contains no secrets or paths.
+  - Vendor REA's bundled skill (built from source at 6.5.0) into `/.claude/skills/reverse-engineer-anything/` with its MIT `LICENSE`. Regenerate it from the matching release on every version bump.
+  - Not installed: native engines. Ghidra (free) needs network access to github.com; Hopper/IDA are paid → APR required (§4).
+- **Usage boundary (binding):** REA may be used only on targets the owner owns or is authorized to examine (our own theme/app builds, purchased tools whose licence permits analysis, security review of our own stack). **Never** on competitor stores/apps to copy features, code or assets (§10 plagiarism), and never to bypass bot protection, DRM, licence checks, rate limits or ToS (§4). Competitive intelligence stays desk research that extracts principles. Runtime-capture tools that interact with third-party systems need owner approval per target. See RISK-010.
+- **Consequences:** New sessions at the repo root will prompt to approve the `rea` project MCP server. Version bump = DEC entry + re-run of the checks above. Remove by deleting the `rea` entry and the skill directory.
+
 ### DEC-010 · 2026-10-03 · Stage 1 shortlist: C-005, C-012, C-008 (C-010 alternate)
 - **Evidence:** `research/candidates/RANKING.md` (12 candidates, 3 researchers, 105 sources).
 - **Decision:** Follow the workflow mechanically — top 3 non-rejected by score: C-005 cat couch deter+redirect kit (71%), C-012 travel jewelry case (69%), C-008 gravity vacation watering kit (68%). C-010 yarn project bag (67%) is first alternate — the gap is within scoring noise.

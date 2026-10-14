@@ -4,6 +4,7 @@ Likelihood/Impact: L/M/H. Newest first. Status: OPEN / MITIGATED / ACCEPTED / CL
 
 | ID | Risk | L | I | Mitigation | Status |
 |---|---|---|---|---|---|
+| RISK-010 | REA reverse-engineering tool misused on competitor or third-party targets (IP/ToS/legal), or a compromised future release (supply chain) | M | H | DEC-011 usage boundary (own/authorized targets only; no competitor copying; runtime capture of third-party systems needs approval); exact version pin; vetting + tests re-run on every bump | MITIGATED (procedural) |
 | RISK-009 | Stage 1 evidence is search-snippet level only (page fetches blocked); prices/complaints may be misattributed or stale | H | M | Shortlist marked provisional; orchestrator spot-checks (4/4 consistent); re-open key sources before any spend (V-R1) | OPEN |
 | RISK-008 | Agent edits financial limits or `.env` | L | H | PreToolUse hook blocks Edit/Write + shell writes; CI shape check; CODEOWNERS | MITIGATED |
 | RISK-007 | Accidental write to live store / live theme | M | H | Dry-run default; store allow-list; `theme publish`/`delete` denied in Claude settings; dev themes only | MITIGATED |
